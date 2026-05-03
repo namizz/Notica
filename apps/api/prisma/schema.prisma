@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum PlanType {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  VIEWER
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum DeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ChannelType {
+  IN_APP
+  WEB_PUSH
+}
+
+enum PlatformType {
+  WEB
+  IOS
+  ANDROID
+}
+
+// --- Multi-Tenant Core ---
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  plan      PlanType @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects       Project[]
+  dashboardUsers DashboardUser[]
+  recipientUsers RecipientUser[]
+  notifications  Notification[]
+  deviceTokens   DeviceToken[]
+
+  @@map("tenants")
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  apiKey    String   @unique @map("api_key")
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("projects")
+}
+
+// --- Users ---
+
+model DashboardUser {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(VIEWER)
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_users")
+}
+
+model RecipientUser {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  externalUserId String   @map("external_user_id")
+  name           String?
+  email          String?
+  createdAt      DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+  deviceTokens  DeviceToken[]
+
+  // Critical: Recipient identity is scoped to the tenant
+  @@unique([tenantId, externalUserId])
+  @@map("recipient_users")
+}
+
+// --- Notifications ---
+
+model Notification {
+  id              String             @id @default(uuid())
+  tenantId        String             @map("tenant_id")
+  recipientUserId String             @map("recipient_user_id")
+  title           String
+  body            String
+  status          NotificationStatus @default(PENDING)
+  channel         ChannelType
+  createdAt       DateTime           @default(now())
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipientUser RecipientUser          @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  deliveries    NotificationDelivery[]
+
+  @@map("notifications")
+}
+
+model NotificationDelivery {
+  id             String         @id @default(uuid())
+  notificationId String         @map("notification_id")
+  provider       String
+  status         DeliveryStatus @default(PENDING)
+  attemptCount   Int            @default(0) @map("attempt_count")
+  errorMessage   String?        @map("error_message")
+  sentAt         DateTime?      @map("sent_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@map("notification_deliveries")
+}
+
+model DeviceToken {
+  id              String       @id @default(uuid())
+  tenantId        String       @map("tenant_id")
+  recipientUserId String       @map("recipient_user_id")
+  token           String       @unique
+  platform        PlatformType
+  createdAt       DateTime     @default(now())
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipientUser RecipientUser @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
+}

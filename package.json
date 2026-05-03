@@ -1,0 +1,9 @@
+{
+  "name": "notica-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --recursive run dev",
+    "build": "pnpm --recursive run build"
+  }
+}
