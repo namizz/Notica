@@ -1,12 +1,13 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { RecipientsService } from './recipients.service';
 import { IdentifyRecipientDto } from './dto/identify-recipient.dto';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 
 @ApiTags('Recipients')
-@UseGuards(AuthGuard(['jwt', 'api-key']))
+@UseGuards(ThrottlerGuard, AuthGuard(['jwt', 'api-key']))
 @Controller('recipients')
 export class RecipientsController {
   constructor(private readonly recipientsService: RecipientsService) {}

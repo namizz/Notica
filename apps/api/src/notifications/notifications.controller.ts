@@ -1,12 +1,13 @@
 import { Controller, Get, Post, Patch, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 
 @ApiTags('Notifications')
-@UseGuards(AuthGuard(['jwt', 'api-key']))
+@UseGuards(ThrottlerGuard, AuthGuard(['jwt', 'api-key']))
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

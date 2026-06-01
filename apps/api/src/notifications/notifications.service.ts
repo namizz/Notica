@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { NotificationStatus } from '@prisma/client';
+import { sanitizeText } from './utils/sanitize.util';
 
 @Injectable()
 export class NotificationsService {
@@ -14,6 +15,8 @@ export class NotificationsService {
 
   async sendNotification(tenantId: string, projectId: string, dto: SendNotificationDto) {
     const { recipientId, title, body, channel } = dto;
+    const sanitizedTitle = sanitizeText(title);
+    const sanitizedBody = sanitizeText(body);
 
     // 1. Resolve or auto-create the recipient user
     let recipient = await this.prisma.recipientUser.findUnique({
@@ -39,8 +42,8 @@ export class NotificationsService {
       data: {
         tenantId,
         recipientUserId: recipient.id,
-        title,
-        body,
+        title: sanitizedTitle,
+        body: sanitizedBody,
         channel,
         status: NotificationStatus.PENDING,
       },
@@ -52,8 +55,8 @@ export class NotificationsService {
       tenantId,
       recipientDbId: recipient.id,
       externalUserId: recipient.externalUserId,
-      title,
-      body,
+      title: sanitizedTitle,
+      body: sanitizedBody,
       channel,
     }, {
       attempts: 3,

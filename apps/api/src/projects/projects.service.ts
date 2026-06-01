@@ -11,16 +11,26 @@ export class ProjectsService {
     return `ntc_live_${randomKey}`;
   }
 
-  async createProject(tenantId: string, name: string) {
-    const apiKey = this.generateApiKey();
+  private hashApiKey(apiKey: string): string {
+    return crypto.createHash('sha256').update(apiKey).digest('hex');
+  }
 
-    return this.prisma.project.create({
+  async createProject(tenantId: string, name: string) {
+    const rawApiKey = this.generateApiKey();
+    const hashedApiKey = this.hashApiKey(rawApiKey);
+
+    const project = await this.prisma.project.create({
       data: {
         tenantId,
         name,
-        apiKey,
+        apiKey: hashedApiKey,
       },
     });
+
+    return {
+      ...project,
+      apiKey: rawApiKey,
+    };
   }
 
   async getProjects(tenantId: string) {
@@ -44,12 +54,18 @@ export class ProjectsService {
     }
 
     // 2. Generate a new API key
-    const newApiKey = this.generateApiKey();
+    const rawApiKey = this.generateApiKey();
+    const hashedApiKey = this.hashApiKey(rawApiKey);
 
     // 3. Update the key
-    return this.prisma.project.update({
+    const updatedProject = await this.prisma.project.update({
       where: { id: projectId },
-      data: { apiKey: newApiKey },
+      data: { apiKey: hashedApiKey },
     });
+
+    return {
+      ...updatedProject,
+      apiKey: rawApiKey,
+    };
   }
 }
