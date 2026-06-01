@@ -24,6 +24,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     
     // We also return the tenantId so it can be extracted
-    return { userId: payload.sub, email: payload.email, tenantId: user.tenantId, role: user.role };
+    return { userId: payload.sub, email: payload.email, tenantId: user.tenantId, role: user.role, sid: payload.sid };
   }
 }
