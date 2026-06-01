@@ -3,6 +3,8 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ApiKeyStrategy } from './strategies/api-key.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { GitHubStrategy } from './strategies/github.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -17,7 +19,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, ApiKeyStrategy],
+  providers: [AuthService, JwtStrategy, ApiKeyStrategy, GoogleStrategy, GitHubStrategy],
   exports: [AuthService, JwtStrategy, ApiKeyStrategy, PassportModule],
 })
 export class AuthModule {}

@@ -88,8 +88,17 @@ model DashboardUser {
   id               String   @id @default(uuid())
   tenantId         String   @map("tenant_id")
   email            String   @unique
-  passwordHash     String   @map("password_hash")
+  passwordHash     String?  @map("password_hash")
   refreshTokenHash String?  @map("refresh_token_hash")
+
+  // 2FA Fields
+  twoFactorSecret    String?  @map("two_factor_secret")
+  isTwoFactorEnabled Boolean  @default(false) @map("is_two_factor_enabled")
+
+  // OAuth Fields
+  authProvider       String   @default("local") @map("auth_provider")
+  authProviderId     String?  @map("auth_provider_id")
+
   role             Role     @default(VIEWER)
   createdAt        DateTime @default(now())
 
