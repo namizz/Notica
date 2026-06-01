@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, Get, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, Get, Param, Delete, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -163,11 +163,21 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth2 login callback' })
-  @ApiResponse({ status: 200, description: 'Google authenticated successfully. Returns dashboard JWT tokens.' })
-  async googleAuthCallback(@Req() req: any) {
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens.' })
+  async googleAuthCallback(@Req() req: any, @Res() res: any) {
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip;
-    return this.authService.validateOAuthUser(req.user, userAgent, ipAddress);
+    const result = await this.authService.validateOAuthUser(req.user, userAgent, ipAddress);
+    const query = new URLSearchParams({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      userId: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+      tenantId: result.user.tenantId,
+      isTwoFactorEnabled: result.user.isTwoFactorEnabled.toString(),
+    }).toString();
+    return res.redirect(`http://localhost:3000/auth/callback?${query}`);
   }
 
   @Get('github')
@@ -180,10 +190,20 @@ export class AuthController {
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
   @ApiOperation({ summary: 'GitHub OAuth2 login callback' })
-  @ApiResponse({ status: 200, description: 'GitHub authenticated successfully. Returns dashboard JWT tokens.' })
-  async githubAuthCallback(@Req() req: any) {
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens.' })
+  async githubAuthCallback(@Req() req: any, @Res() res: any) {
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip;
-    return this.authService.validateOAuthUser(req.user, userAgent, ipAddress);
+    const result = await this.authService.validateOAuthUser(req.user, userAgent, ipAddress);
+    const query = new URLSearchParams({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      userId: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+      tenantId: result.user.tenantId,
+      isTwoFactorEnabled: result.user.isTwoFactorEnabled.toString(),
+    }).toString();
+    return res.redirect(`http://localhost:3000/auth/callback?${query}`);
   }
 }
