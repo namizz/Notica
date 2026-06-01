@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --recursive run dev",
-    "build": "pnpm --recursive run build"
+    "build": "pnpm --recursive run build",
+    "db:studio": "pnpm --filter api exec prisma studio",
+    "db:migrate": "pnpm --filter api exec prisma migrate dev"
   }
 }
