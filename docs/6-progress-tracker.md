@@ -17,7 +17,6 @@
 * **Goal**: Implement dashboard user authentication, multi-tenant project registration, secure API key management/rotation, and a secure frontend dashboard interface with robust security controls.
 * **Progress**:
   * [x] Implement Dashboard Authentication (Signup & Login) - Backend.
-  * [x] Implement Project Management (Create projects, generate and rotate API Keys) - Backend.
   * [x] Implement Tenant Isolation logic check endpoints - Backend.
   * [x] Implement Advanced Security (Rate limiting, account lockout) - Backend.
   * [x] Implement Stateful Multi-Session & Password Reset - Backend.
@@ -34,7 +33,8 @@
 ## Checkpoint 3: Recipient & Queue Management (Current Goal)
 * **Goal**: Establish async notification dispatching queues and manage recipient users.
 * **Progress**:
-  * [ ] Implement Recipient User Management (creation and identification of end-users).
-  * [ ] Set up Redis & BullMQ queue system for async notification dispatching.
-  * [ ] Implement In-App notification channel endpoints.
+  * [x] Implement Project Management (Create projects, generate and rotate API Keys) - Backend.
+  * [x] Implement Recipient User Management (creation and identification of end-users).
+  * [x] Set up Redis & BullMQ queue system for async notification dispatching.
+  * [x] Implement In-App notification channel endpoints.
 * **Next Goal**: Implement WebSocket or SSE realtime notification server and client SDK integrations.
