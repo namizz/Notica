@@ -5,8 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -86,16 +85,48 @@ model Project {
 // --- Users ---
 
 model DashboardUser {
-  id           String   @id @default(uuid())
-  tenantId     String   @map("tenant_id")
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role     @default(VIEWER)
-  createdAt    DateTime @default(now())
+  id               String   @id @default(uuid())
+  tenantId         String   @map("tenant_id")
+  email            String   @unique
+  passwordHash     String?  @map("password_hash")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Lockout Fields
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockoutUntil        DateTime? @map("lockout_until")
+
+  // Forgot Password Fields
+  resetPasswordToken     String?   @unique @map("reset_password_token")
+  resetPasswordExpiresAt DateTime? @map("reset_password_expires_at")
+
+  // 2FA Fields
+  twoFactorSecret    String?  @map("two_factor_secret")
+  isTwoFactorEnabled Boolean  @default(false) @map("is_two_factor_enabled")
+
+  // OAuth Fields
+  authProvider       String   @default("local") @map("auth_provider")
+  authProviderId     String?  @map("auth_provider_id")
+
+  role             Role          @default(VIEWER)
+  createdAt        DateTime      @default(now())
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions UserSession[]
 
   @@map("dashboard_users")
+}
+
+model UserSession {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  refreshTokenHash String   @map("refresh_token_hash")
+  userAgent        String?  @map("user_agent")
+  ipAddress        String?  @map("ip_address")
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime @map("expires_at")
+
+  user DashboardUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
 }
 
 model RecipientUser {
