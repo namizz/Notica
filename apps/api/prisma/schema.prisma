@@ -157,6 +157,8 @@ model Notification {
   status          NotificationStatus @default(PENDING)
   channel         ChannelType
   createdAt       DateTime           @default(now())
+  isRead          Boolean            @default(false) @map("is_read")
+  readAt          DateTime?          @map("read_at")
 
   tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recipientUser RecipientUser          @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
