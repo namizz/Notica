@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { Request } from 'express';
-import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -19,11 +18,8 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
       throw new UnauthorizedException('API key is missing');
     }
 
-    // Hash the incoming key to match the database value
-    const hashedApiKey = crypto.createHash('sha256').update(apiKey).digest('hex');
-
     const project = await this.prisma.project.findUnique({
-      where: { apiKey: hashedApiKey },
+      where: { apiKey },
     });
 
     if (!project) {

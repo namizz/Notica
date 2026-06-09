@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { authenticator } from 'otplib';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -11,26 +12,18 @@ export class ProjectsService {
     return `ntc_live_${randomKey}`;
   }
 
-  private hashApiKey(apiKey: string): string {
-    return crypto.createHash('sha256').update(apiKey).digest('hex');
-  }
-
   async createProject(tenantId: string, name: string) {
     const rawApiKey = this.generateApiKey();
-    const hashedApiKey = this.hashApiKey(rawApiKey);
 
     const project = await this.prisma.project.create({
       data: {
         tenantId,
         name,
-        apiKey: hashedApiKey,
+        apiKey: rawApiKey,
       },
     });
 
-    return {
-      ...project,
-      apiKey: rawApiKey,
-    };
+    return project;
   }
 
   async getProjects(tenantId: string) {
@@ -55,17 +48,55 @@ export class ProjectsService {
 
     // 2. Generate a new API key
     const rawApiKey = this.generateApiKey();
-    const hashedApiKey = this.hashApiKey(rawApiKey);
 
     // 3. Update the key
     const updatedProject = await this.prisma.project.update({
       where: { id: projectId },
-      data: { apiKey: hashedApiKey },
+      data: { apiKey: rawApiKey },
     });
 
-    return {
-      ...updatedProject,
-      apiKey: rawApiKey,
-    };
+    return updatedProject;
+  }
+
+  async revealApiKey(tenantId: string, projectId: string, userId: string, code: string) {
+    // 1. Fetch the user to check 2FA status
+    const user = await this.prisma.dashboardUser.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (!user.isTwoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestException('Two-factor authentication is not enabled for this account');
+    }
+
+    if (!code) {
+      throw new BadRequestException('Two-factor verification code is required');
+    }
+
+    const isCodeValid = authenticator.verify({
+      token: code,
+      secret: user.twoFactorSecret,
+    });
+
+    if (!isCodeValid) {
+      throw new UnauthorizedException('Invalid 2FA verification code');
+    }
+
+    // 2. Verify that the project exists and belongs to this tenant (Isolation check)
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        tenantId,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found or access denied');
+    }
+
+    return { apiKey: project.apiKey };
   }
 }

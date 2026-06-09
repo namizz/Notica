@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
-import { Layers, Plus, RotateCw, Copy, Check, Eye, EyeOff, AlertTriangle, Terminal, Code } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
+import { Layers, Plus, AlertTriangle, Terminal } from 'lucide-react';
+import { io } from 'socket.io-client';
+import { ProjectCard } from '@/components/ProjectCard';
+import { ActivityConsole, ConsoleLog } from '@/components/ActivityConsole';
 
 interface Project {
   id: string;
@@ -12,6 +17,7 @@ interface Project {
 }
 
 export default function ProjectsPage() {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,14 +27,27 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Key visibility & Copy Status
-  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+  // Newly revealed keys state
+  const [revealedKeys, setRevealedKeys] = useState<Record<string, string>>({});
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
-  // Rotate Key Confirmation Modal
+  // Rotate Key Confirmation Modal (Simple Confirmation)
   const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [rotatingName, setRotatingName] = useState<string | null>(null);
   const [confirmRotateOpen, setConfirmRotateOpen] = useState(false);
+  const [isRotateLoading, setIsRotateLoading] = useState(false);
+
+  // 2FA Reveal Modal states
+  const [revealProjectId, setRevealProjectId] = useState<string | null>(null);
+  const [revealCode, setRevealCode] = useState('');
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const [isRevealLoading, setIsRevealLoading] = useState(false);
+
+  // Real-time Console Log Feed
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
+  const [selectedLogProjectId, setSelectedLogProjectId] = useState<string>('');
+  const [isConsoleConnected, setIsConsoleConnected] = useState(false);
+  const socketRef = useRef<any>(null);
 
   const fetchProjects = async () => {
     try {
@@ -36,6 +55,9 @@ export default function ProjectsPage() {
       if (res.ok) {
         const data = await res.json();
         setProjects(data);
+        if (data.length > 0 && !selectedLogProjectId) {
+          setSelectedLogProjectId(data[0].id);
+        }
       } else {
         setError('Failed to fetch projects.');
       }
@@ -49,6 +71,83 @@ export default function ProjectsPage() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    const activeProject = projects.find(p => p.id === selectedLogProjectId);
+    if (!activeProject) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        setIsConsoleConnected(false);
+      }
+      return;
+    }
+
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8000';
+    console.log(`[Dashboard Console] Connecting to logs stream for project: ${activeProject.name}`);
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+
+    const socket = io(`${wsUrl}/realtime`, {
+      query: {
+        apiKey: activeProject.apiKey,
+        recipientId: 'dashboard',
+      },
+      transports: ['websocket'],
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setIsConsoleConnected(true);
+      setConsoleLogs(prev => [
+        {
+          timestamp: new Date(),
+          type: 'info',
+          message: `Connected to live activity log stream for project: "${activeProject.name}"`
+        },
+        ...prev
+      ]);
+    });
+
+    socket.on('log_event', (logData: any) => {
+      setConsoleLogs(prev => [
+        {
+          timestamp: new Date(logData.timestamp),
+          type: logData.type,
+          message: logData.message,
+          notificationId: logData.notificationId,
+          recipientId: logData.recipientId,
+          channel: logData.channel,
+        },
+        ...prev
+      ]);
+    });
+
+    socket.on('disconnect', () => {
+      setIsConsoleConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[Dashboard Console] Socket connection error:', err);
+      setConsoleLogs(prev => [
+        {
+          timestamp: new Date(),
+          type: 'error',
+          message: `Connection error: ${err.message}`
+        },
+        ...prev
+      ]);
+    });
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [selectedLogProjectId, projects]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,29 +174,86 @@ export default function ProjectsPage() {
   const handleRotateKey = async () => {
     if (!rotatingId) return;
 
+    setIsRotateLoading(true);
     try {
       const res = await api.post(`/projects/${rotatingId}/rotate-key`);
       if (res.ok) {
         setConfirmRotateOpen(false);
         setRotatingId(null);
         setRotatingName(null);
+        setRevealedKeys((prev) => {
+          const next = { ...prev };
+          delete next[rotatingId];
+          return next;
+        });
         fetchProjects();
       } else {
         alert('Failed to rotate API Key.');
       }
     } catch (e) {
       alert('Error rotating API Key.');
+    } finally {
+      setIsRotateLoading(false);
+    }
+  };
+
+  const handleRevealKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revealProjectId) return;
+
+    setIsRevealLoading(true);
+    setRevealError(null);
+    try {
+      const res = await api.post(`/projects/${revealProjectId}/reveal`, {
+        code: revealCode,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRevealedKeys((prev) => ({ ...prev, [revealProjectId]: data.apiKey }));
+        setRevealProjectId(null);
+        setRevealCode('');
+      } else {
+        const err = await res.json();
+        setRevealError(err.message || 'Verification failed. Please try again.');
+      }
+    } catch (e) {
+      setRevealError('An error occurred during verification.');
+    } finally {
+      setIsRevealLoading(false);
     }
   };
 
   const toggleKeyVisibility = (projectId: string) => {
-    setVisibleKeys((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
+    if (revealedKeys[projectId]) {
+      setRevealedKeys((prev) => {
+        const next = { ...prev };
+        delete next[projectId];
+        return next;
+      });
+    } else {
+      setRevealProjectId(projectId);
+      setRevealCode('');
+      setRevealError(null);
+    }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKeyId(id);
-    setTimeout(() => setCopiedKeyId(null), 2000);
+  const copyToClipboard = (projectId: string) => {
+    const rawKey = revealedKeys[projectId];
+    if (rawKey) {
+      navigator.clipboard.writeText(rawKey);
+      setCopiedKeyId(projectId);
+      setTimeout(() => setCopiedKeyId(null), 2000);
+    } else {
+      setRevealProjectId(projectId);
+      setRevealCode('');
+      setRevealError(null);
+    }
+  };
+
+  const handleRotateRequest = (id: string, name: string) => {
+    setRotatingId(id);
+    setRotatingName(name);
+    setConfirmRotateOpen(true);
   };
 
   return (
@@ -110,7 +266,7 @@ export default function ProjectsPage() {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold text-white transition-all shadow-md shadow-violet-600/10"
+          className="inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold text-white transition-all shadow-md shadow-violet-600/10 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           Create New Project
@@ -133,7 +289,7 @@ export default function ProjectsPage() {
           <p className="text-xs text-slate-500 max-w-sm mx-auto">Create a project to start dispatching push and realtime notifications.</p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 font-semibold"
+            className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 font-semibold cursor-pointer"
           >
             Create one now <Plus className="h-3.5 w-3.5" />
           </button>
@@ -141,87 +297,28 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid gap-6">
           {projects.map((project) => (
-            <div
+            <ProjectCard
               key={project.id}
-              className="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 relative overflow-hidden"
-            >
-              <div className="flex items-start justify-between flex-wrap gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-white">{project.name}</h3>
-                  <p className="text-[10px] text-slate-500 font-mono">ID: {project.id}</p>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    setRotatingId(project.id);
-                    setRotatingName(project.name);
-                    setConfirmRotateOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl hover:bg-rose-950/20 hover:border-rose-900/30 text-xs font-semibold text-slate-400 hover:text-rose-200 transition-all cursor-pointer"
-                >
-                  <RotateCw className="h-3 w-3" />
-                  Rotate Key
-                </button>
-              </div>
-
-              {/* API Key Panel */}
-              <div className="mt-6 space-y-2">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Live API Key
-                </label>
-                <div className="flex items-center gap-2 max-w-2xl bg-slate-950 border border-slate-900 rounded-xl px-4 py-3">
-                  <div className="flex-1 font-mono text-xs select-all break-all pr-2 tracking-wide text-violet-300">
-                    {visibleKeys[project.id] ? project.apiKey : '••••••••••••••••••••••••••••••••••••••••••••••••'}
-                  </div>
-                  
-                  <div className="flex items-center gap-1 shrink-0 border-l border-slate-900 pl-2">
-                    <button
-                      onClick={() => toggleKeyVisibility(project.id)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-900 transition-colors"
-                      title={visibleKeys[project.id] ? "Hide Key" : "Show Key"}
-                    >
-                      {visibleKeys[project.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                    <button
-                      onClick={() => copyToClipboard(project.apiKey, project.id)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-900 transition-colors"
-                      title="Copy to Clipboard"
-                    >
-                      {copiedKeyId === project.id ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Code Integration Panel */}
-              <div className="mt-6 border-t border-slate-900 pt-6">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-3">
-                  <Code className="h-4 w-4 text-violet-400" />
-                  <span>Integration snippet (Node.js SDK)</span>
-                </div>
-                <div className="relative bg-slate-950 rounded-xl p-4 border border-slate-900 font-mono text-[11px] text-slate-300 leading-relaxed overflow-x-auto">
-                  <span className="text-slate-500">// Initialize SDK client</span>
-                  <br />
-                  <span className="text-violet-400">const</span> notica = require(<span className="text-emerald-400">&apos;@notica/node&apos;</span>).init(<span className="text-emerald-400">&apos;{project.apiKey}&apos;</span>);
-                  <br />
-                  <br />
-                  <span className="text-slate-500">// Notify a stateful recipient instantly</span>
-                  <br />
-                  <span className="text-violet-400">await</span> notica.notify(&apos;user_123&apos;, &#123;
-                  <br />
-                  &nbsp;&nbsp;title: <span className="text-emerald-400">&apos;Alert triggered&apos;</span>,
-                  <br />
-                  &nbsp;&nbsp;body: <span className="text-emerald-400">&apos;Service threshold exceeded by 15%&apos;</span>,
-                  <br />
-                  &nbsp;&nbsp;channel: <span className="text-emerald-400">&apos;in_app&apos;</span>
-                  <br />
-                  &#125;);
-                </div>
-              </div>
-            </div>
+              project={project}
+              revealedKey={revealedKeys[project.id]}
+              copiedKeyId={copiedKeyId}
+              toggleKeyVisibility={toggleKeyVisibility}
+              copyToClipboard={copyToClipboard}
+              onRotateRequest={handleRotateRequest}
+            />
           ))}
         </div>
       )}
+
+      {/* Real-time Activity Log Terminal */}
+      <ActivityConsole
+        projects={projects}
+        selectedLogProjectId={selectedLogProjectId}
+        setSelectedLogProjectId={setSelectedLogProjectId}
+        isConsoleConnected={isConsoleConnected}
+        consoleLogs={consoleLogs}
+        onClearLogs={() => setConsoleLogs([])}
+      />
 
       {/* Create Project Modal */}
       {showCreateModal && (
@@ -260,7 +357,7 @@ export default function ProjectsPage() {
                 <button
                   type="submit"
                   disabled={creating || !newProjectName.trim()}
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-violet-600/10 disabled:opacity-50"
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-violet-600/10 disabled:opacity-50 cursor-pointer"
                 >
                   {creating ? 'Creating...' : 'Create Project'}
                 </button>
@@ -294,17 +391,112 @@ export default function ProjectsPage() {
                   setRotatingName(null);
                 }}
                 className="px-4 py-2 bg-transparent text-slate-400 hover:text-slate-200 text-sm font-semibold rounded-xl"
+                disabled={isRotateLoading}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleRotateKey}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-rose-600/10"
+                disabled={isRotateLoading}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-rose-600/10 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Confirm Rotation
+                {isRotateLoading ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border border-white/20 border-t-white"></div>
+                    Rotating...
+                  </>
+                ) : (
+                  'Confirm Rotation'
+                )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Reveal Verification Modal */}
+      {revealProjectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative space-y-4">
+            <div className="h-10 w-10 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl flex items-center justify-center">
+              <Terminal className="h-5 w-5" />
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-bold text-white">Reveal API Key</h3>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                For security, you must verify your identity to reveal this API key.
+              </p>
+            </div>
+
+            <form onSubmit={handleRevealKey} className="space-y-4">
+              {!user?.isTwoFactorEnabled ? (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-200 text-xs leading-normal">
+                  <p className="font-bold text-white mb-1">Two-Factor Authentication Required</p>
+                  You must enable Two-Factor Authentication (2FA) in your Security settings to reveal API keys.
+                  <div className="mt-2.5">
+                    <Link
+                      href="/dashboard/security"
+                      className="inline-flex items-center text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                    >
+                      Enable 2FA in Security Settings &rarr;
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    2FA Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={revealCode}
+                    onChange={(e) => setRevealCode(e.target.value)}
+                    placeholder="000000"
+                    className="block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all text-sm font-mono tracking-widest text-center"
+                    maxLength={6}
+                  />
+                </div>
+              )}
+
+              {revealError && (
+                <p className="text-xs text-rose-400 font-semibold">{revealError}</p>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-900">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRevealProjectId(null);
+                    setRevealCode('');
+                    setRevealError(null);
+                  }}
+                  className="px-4 py-2 bg-transparent text-slate-400 hover:text-slate-200 text-sm font-semibold rounded-xl"
+                  disabled={isRevealLoading}
+                >
+                  Cancel
+                </button>
+                {user?.isTwoFactorEnabled && (
+                  <button
+                    type="submit"
+                    disabled={isRevealLoading || !revealCode}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-violet-600/10 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {isRevealLoading ? (
+                      <>
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border border-white/20 border-t-white"></div>
+                        Verifying...
+                      </>
+                    ) : (
+                      'Reveal Key'
+                    )}
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
         </div>
       )}

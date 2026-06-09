@@ -176,6 +176,7 @@ export class AuthController {
       role: result.user.role,
       tenantId: result.user.tenantId,
       isTwoFactorEnabled: result.user.isTwoFactorEnabled.toString(),
+      authProvider: result.user.authProvider,
     }).toString();
     return res.redirect(`http://localhost:3000/auth/callback?${query}`);
   }
@@ -203,6 +204,7 @@ export class AuthController {
       role: result.user.role,
       tenantId: result.user.tenantId,
       isTwoFactorEnabled: result.user.isTwoFactorEnabled.toString(),
+      authProvider: result.user.authProvider,
     }).toString();
     return res.redirect(`http://localhost:3000/auth/callback?${query}`);
   }

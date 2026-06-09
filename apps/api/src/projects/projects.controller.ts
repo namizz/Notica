@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
@@ -41,5 +41,19 @@ export class ProjectsController {
     @Param('id') projectId: string,
   ) {
     return this.projectsService.rotateApiKey(tenantId, projectId);
+  }
+
+  @Post(':id/reveal')
+  @ApiOperation({ summary: 'Reveal the API key for a project' })
+  @ApiResponse({ status: 200, description: 'API key returned successfully.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  revealKey(
+    @CurrentTenant() tenantId: string,
+    @Param('id') projectId: string,
+    @Body() body: { code: string },
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId;
+    return this.projectsService.revealApiKey(tenantId, projectId, userId, body.code);
   }
 }

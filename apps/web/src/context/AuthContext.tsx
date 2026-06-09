@@ -9,6 +9,7 @@ export interface User {
   role: string;
   tenantId: string;
   isTwoFactorEnabled: boolean;
+  authProvider: string;
 }
 
 interface AuthContextType {

@@ -6,6 +6,9 @@ import { ProjectsModule } from './projects/projects.module';
 import { QueueModule } from './queue/queue.module';
 import { RecipientsModule } from './recipients/recipients.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { PushModule } from './push/push.module';
+import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { AuthTestController } from './auth-test.controller';
 
 @Module({
@@ -16,6 +19,9 @@ import { AuthTestController } from './auth-test.controller';
     QueueModule,
     RecipientsModule,
     NotificationsModule,
+    RealtimeModule,
+    PushModule,
+    DeviceTokensModule,
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 minute
       limit: 10,  // max 10 requests per minute
