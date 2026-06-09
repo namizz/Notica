@@ -59,3 +59,16 @@
   * [x] Fix duplicate notification displays in the mock app client-side.
   * [x] Implement dynamic CORS origin matching to support any localhost/127.0.0.1 developer port.
   * [x] Optimize notification dispatches (parallel dispatching, dual payload inspector logs, and permission checks).
+* **Next Goal**: Implement Email Notification Channel and integration modules.
+
+---
+
+## Checkpoint 5: Email Notification Channel (Current Goal)
+* **Goal**: Implement email notification delivery using an extensible provider/adapter pattern (supporting SMTP and local Console fallback initially, and structurally prepared to add Resend, SendGrid, or other API-based providers in the future) integrated into NestJS and BullMQ.
+* **Progress**:
+  * [ ] Add `EMAIL` to the Prisma `ChannelType` enum and execute migrations.
+  * [ ] Create NestJS `EmailModule` with an extensible `EmailProvider` interface, implementing `SmtpProvider` and `ConsoleProvider`.
+  * [ ] Add the `EMAIL` handler to the BullMQ `NotificationsProcessor`.
+  * [ ] Document the Email channel usage in the developer **Documentation** tab.
+  * [ ] Validate email delivery via console logs or a test SMTP server (Maildev).
+
