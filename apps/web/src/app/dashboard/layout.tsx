@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
-import { Layers, Monitor, ShieldCheck, LogOut, User, Bell, Terminal, BookOpen } from 'lucide-react';
+import { Layers, Monitor, ShieldCheck, LogOut, User, Bell, Terminal, BookOpen, Activity } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -13,6 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navigation = [
     { name: 'Projects & Keys', href: '/dashboard', icon: Layers },
+    { name: 'Real-time Console', href: '/dashboard/console', icon: Activity },
     { name: 'Delivery Logs', href: '/dashboard/logs', icon: Terminal },
     { name: 'Documentation', href: '/dashboard/docs', icon: BookOpen },
     { name: 'Active Sessions', href: '/dashboard/sessions', icon: Monitor },
