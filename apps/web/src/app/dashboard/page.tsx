@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { Layers, Plus, AlertTriangle, Terminal } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { ProjectCard } from '@/components/ProjectCard';
-import { ActivityConsole, ConsoleLog } from '@/components/ActivityConsole';
 
 interface Project {
   id: string;
@@ -43,11 +41,7 @@ export default function ProjectsPage() {
   const [revealError, setRevealError] = useState<string | null>(null);
   const [isRevealLoading, setIsRevealLoading] = useState(false);
 
-  // Real-time Console Log Feed
-  const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
-  const [selectedLogProjectId, setSelectedLogProjectId] = useState<string>('');
-  const [isConsoleConnected, setIsConsoleConnected] = useState(false);
-  const socketRef = useRef<any>(null);
+
 
   const fetchProjects = async () => {
     try {
@@ -55,9 +49,6 @@ export default function ProjectsPage() {
       if (res.ok) {
         const data = await res.json();
         setProjects(data);
-        if (data.length > 0 && !selectedLogProjectId) {
-          setSelectedLogProjectId(data[0].id);
-        }
       } else {
         setError('Failed to fetch projects.');
       }
@@ -72,82 +63,7 @@ export default function ProjectsPage() {
     fetchProjects();
   }, []);
 
-  useEffect(() => {
-    const activeProject = projects.find(p => p.id === selectedLogProjectId);
-    if (!activeProject) {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-        setIsConsoleConnected(false);
-      }
-      return;
-    }
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8000';
-    console.log(`[Dashboard Console] Connecting to logs stream for project: ${activeProject.name}`);
-
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-    }
-
-    const socket = io(`${wsUrl}/realtime`, {
-      query: {
-        apiKey: activeProject.apiKey,
-        recipientId: 'dashboard',
-      },
-      transports: ['websocket'],
-    });
-
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      setIsConsoleConnected(true);
-      setConsoleLogs(prev => [
-        {
-          timestamp: new Date(),
-          type: 'info',
-          message: `Connected to live activity log stream for project: "${activeProject.name}"`
-        },
-        ...prev
-      ]);
-    });
-
-    socket.on('log_event', (logData: any) => {
-      setConsoleLogs(prev => [
-        {
-          timestamp: new Date(logData.timestamp),
-          type: logData.type,
-          message: logData.message,
-          notificationId: logData.notificationId,
-          recipientId: logData.recipientId,
-          channel: logData.channel,
-        },
-        ...prev
-      ]);
-    });
-
-    socket.on('disconnect', () => {
-      setIsConsoleConnected(false);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('[Dashboard Console] Socket connection error:', err);
-      setConsoleLogs(prev => [
-        {
-          timestamp: new Date(),
-          type: 'error',
-          message: `Connection error: ${err.message}`
-        },
-        ...prev
-      ]);
-    });
-
-    return () => {
-      if (socket) {
-        socket.disconnect();
-      }
-    };
-  }, [selectedLogProjectId, projects]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,15 +226,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Real-time Activity Log Terminal */}
-      <ActivityConsole
-        projects={projects}
-        selectedLogProjectId={selectedLogProjectId}
-        setSelectedLogProjectId={setSelectedLogProjectId}
-        isConsoleConnected={isConsoleConnected}
-        consoleLogs={consoleLogs}
-        onClearLogs={() => setConsoleLogs([])}
-      />
+
 
       {/* Create Project Modal */}
       {showCreateModal && (
