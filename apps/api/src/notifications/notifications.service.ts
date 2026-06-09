@@ -92,6 +92,75 @@ export class NotificationsService {
     });
   }
 
+  async getTenantNotifications(
+    tenantId: string,
+    page: number,
+    limit: number,
+    channel?: string,
+    status?: string,
+    search?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      tenantId,
+    };
+
+    if (channel) {
+      where.channel = channel;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { body: { contains: search, mode: 'insensitive' } },
+        {
+          recipientUser: {
+            externalUserId: { contains: search, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          recipientUser: {
+            select: {
+              externalUserId: true,
+              name: true,
+              email: true,
+            },
+          },
+          deliveries: {
+            orderBy: {
+              sentAt: 'desc',
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data,
+    };
+  }
+
   async markAsRead(tenantId: string, notificationId: string) {
     const notification = await this.prisma.notification.findFirst({
       where: {
