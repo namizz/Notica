@@ -117,6 +117,7 @@ export class AuthService {
         role: result.user.role,
         tenantId: result.user.tenantId,
         isTwoFactorEnabled: result.user.isTwoFactorEnabled,
+        authProvider: result.user.authProvider,
       },
       project: {
         id: result.project.id,
@@ -189,6 +190,7 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         isTwoFactorEnabled: user.isTwoFactorEnabled,
+        authProvider: user.authProvider,
       },
     };
   }
@@ -401,6 +403,7 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         isTwoFactorEnabled: user.isTwoFactorEnabled,
+        authProvider: user.authProvider,
       },
     };
   }
@@ -474,6 +477,7 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         isTwoFactorEnabled: user.isTwoFactorEnabled,
+        authProvider: user.authProvider,
       },
     };
   }

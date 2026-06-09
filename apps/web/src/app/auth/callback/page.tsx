@@ -21,6 +21,7 @@ function AuthCallbackHandler() {
     const role = searchParams.get('role');
     const tenantId = searchParams.get('tenantId');
     const isTwoFactorEnabled = searchParams.get('isTwoFactorEnabled') === 'true';
+    const authProvider = searchParams.get('authProvider') || 'local';
 
     if (accessToken && refreshToken && userId && email && role && tenantId) {
       try {
@@ -33,6 +34,7 @@ function AuthCallbackHandler() {
             role,
             tenantId,
             isTwoFactorEnabled,
+            authProvider,
           },
         });
         router.replace('/dashboard');

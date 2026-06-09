@@ -5,11 +5,15 @@ import { NotificationsController } from './notifications.controller';
 import { NotificationsProcessor } from './notifications.processor';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { RealtimeModule } from '../realtime/realtime.module';
+import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    RealtimeModule,
+    PushModule,
     BullModule.registerQueue({
       name: 'notification-delivery',
     }),
