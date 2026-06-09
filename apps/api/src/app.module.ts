@@ -10,6 +10,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { PushModule } from './push/push.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { AuthTestController } from './auth-test.controller';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuthTestController } from './auth-test.controller';
     RealtimeModule,
     PushModule,
     DeviceTokensModule,
+    EmailModule,
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 minute
       limit: 10,  // max 10 requests per minute

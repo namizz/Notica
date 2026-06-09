@@ -193,14 +193,14 @@ export default function DocumentationPage() {
             <div className="space-y-2 pt-4">
               <h3 className="text-base font-bold text-white">2. Trigger a Notification</h3>
               <p className="text-slate-400 leading-normal">
-                Queue and dispatch a notification. You can direct messages to the in-app drawer feed (<code>IN_APP</code>) or browser notification center (<code>WEB_PUSH</code>).
+                Queue and dispatch a notification. You can direct messages to the in-app drawer feed (<code>IN_APP</code>), browser notification center (<code>WEB_PUSH</code>), or email delivery (<code>EMAIL</code>).
               </p>
               <div className="flex items-center gap-2 text-xs font-mono py-1">
                 <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 font-bold rounded">POST</span>
                 <span className="text-slate-350">http://localhost:8000/notifications</span>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <div>
                   <span className="block text-xs font-bold text-slate-400 mb-2">In-App Channel Payload:</span>
                   <CodeSnippet 
@@ -222,6 +222,18 @@ export default function DocumentationPage() {
   "title": "Your Order is Shipped! 🚚",
   "body": "Order #4895 has been dispatched.",
   "channel": "WEB_PUSH"
+}`}
+                  />
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-slate-400 mb-2">Email Channel Payload:</span>
+                  <CodeSnippet 
+                    language="json"
+                    code={`{
+  "recipientId": "shopper_789",
+  "title": "Welcome to our store! 👋",
+  "body": "Your account has been set up successfully.",
+  "channel": "EMAIL"
 }`}
                   />
                 </div>

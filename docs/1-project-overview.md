@@ -174,11 +174,11 @@ Keep MVP focused:
 
 * in-app notifications
 * web push notifications
+* email notifications (as of Checkpoint 5, using an extensible provider structure supporting SMTP and Console Logging fallbacks, prepared for future API providers like Resend/SendGrid)
 
 ## NOT initially
 
 * SMS
-* email
 * WhatsApp
 
 ---
@@ -287,7 +287,7 @@ Notica sends alert
 
 After MVP:
 
-* email support
+* email support (Completed - Checkpoint 5)
 * workflow automation
 * scheduled notifications
 * analytics

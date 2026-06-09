@@ -5,6 +5,7 @@ import { NotificationStatus, DeliveryStatus } from '@prisma/client';
 import { Logger } from '@nestjs/common';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { PushService } from '../push/push.service';
+import { EmailService } from '../email/email.service';
 
 @Processor('notification-delivery')
 export class NotificationsProcessor extends WorkerHost {
@@ -14,6 +15,7 @@ export class NotificationsProcessor extends WorkerHost {
     private prisma: PrismaService,
     private realtimeGateway: RealtimeGateway,
     private pushService: PushService,
+    private emailService: EmailService,
   ) {
     super();
   }
@@ -38,11 +40,18 @@ export class NotificationsProcessor extends WorkerHost {
       data: { status: NotificationStatus.PROCESSING },
     });
 
+    let providerName = 'local-in-app';
+    if (channel === 'WEB_PUSH') {
+      providerName = 'local-web-push';
+    } else if (channel === 'EMAIL') {
+      providerName = 'local-email';
+    }
+
     // 2. Create notification delivery attempt log
     const delivery = await this.prisma.notificationDelivery.create({
       data: {
         notificationId,
-        provider: channel === 'IN_APP' ? 'local-in-app' : 'local-web-push',
+        provider: providerName,
         status: DeliveryStatus.PENDING,
         attemptCount: job.attemptsMade + 1,
       },
@@ -113,6 +122,17 @@ export class NotificationsProcessor extends WorkerHost {
             throw new Error('Web Push delivery failed on all registered devices.');
           }
         }
+      } else if (channel === 'EMAIL') {
+        const recipient = await this.prisma.recipientUser.findUnique({
+          where: { id: recipientDbId },
+        });
+
+        if (!recipient || !recipient.email) {
+          throw new Error('Recipient has no email address configured.');
+        }
+
+        this.logger.log(`Sending Email to: ${recipient.email} for user: ${externalUserId}`);
+        await this.emailService.sendEmail(recipient.email, title, body);
       }
 
       // 4. Mark notification as DELIVERED

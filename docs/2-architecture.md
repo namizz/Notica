@@ -48,10 +48,10 @@ Goal:
           |
           v
 
-+----------------------+
-| Delivery Workers     |
-| Push/In-App Delivery |
-+----------------------+
++----------------------------+
+| Delivery Workers           |
+| Push/In-App/Email Delivery |
++----------------------------+
 ```
 
 ---
@@ -194,6 +194,25 @@ Very important design decision.
 
 ---
 
+# H. Email Provider Layer
+
+Extensible delivery abstraction layer.
+
+Why?
+Rather than locking into standard SMTP, the module implements an **Adapter Pattern** to allow introducing API-based third-party email providers (like Resend, SendGrid, Mailgun) in the future.
+
+```text
+EmailProvider Interface
+    |
+    +--> SmtpProvider (active if SMTP_HOST is defined)
+    +--> ConsoleProvider (development/testing fallback)
+    +--> Future SDK providers (e.g. Resend, SendGrid)
+```
+
+The queue processing worker relies strictly on the `EmailProvider` interface contract, keeping email service integrations completely decoupled.
+
+---
+
 # 4. Notification Flow
 
 # Example Flow
@@ -215,9 +234,7 @@ API returns fast
     ↓
 Worker processes job
     ↓
-Realtime event sent
-    ↓
-Push notification sent
+Realtime, Push, or Email delivered
     ↓
 Status updated
 ```

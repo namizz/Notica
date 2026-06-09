@@ -44,6 +44,7 @@ enum DeliveryStatus {
 enum ChannelType {
   IN_APP
   WEB_PUSH
+  EMAIL
 }
 
 enum PlatformType {
