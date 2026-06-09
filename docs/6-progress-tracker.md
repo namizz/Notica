@@ -37,4 +37,25 @@
   * [x] Implement Recipient User Management (creation and identification of end-users).
   * [x] Set up Redis & BullMQ queue system for async notification dispatching.
   * [x] Implement In-App notification channel endpoints.
-* **Next Goal**: Implement WebSocket or SSE realtime notification server and client SDK integrations.
+  * [x] Implement API Key hashing in Database (Prisma lookup, service creation and rotation).
+  * [x] Apply Rate Limiting (ThrottlerGuard) to public routes.
+  * [x] Implement HTML input sanitization for notification content.
+* **Next Goal**: Implement WebSocket or Web Push realtime notification server and client SDK integrations.
+
+---
+
+## Checkpoint 4: Real-time Notifications & Client SDK (Completed)
+* **Goal**: Establish real-time notification broadcasting via WebSockets, configure browser Web Push alerts, and build a unified client SDK.
+* **Progress**:
+  * [x] Set up NestJS Socket.io WebSocket Gateway and authenticate connection events.
+  * [x] Scope Socket connections into tenant-recipient specific rooms for secure broadcasting.
+  * [x] Integrate real-time event emission inside the BullMQ `NotificationsProcessor`.
+  * [x] Implement Device Token management controller & services to store push subscription credentials.
+  * [x] Install and configure `web-push` (VAPID keys) to dispatch native browser alerts.
+  * [x] Integrate background browser push delivery inside the BullMQ worker.
+  * [x] Create a client-side JavaScript SDK to identify recipients and listen to real-time events.
+  * [x] Implement background Service Worker (`sw.js`) inside the client browser context.
+  * [x] Integrate real-time log alerts inside the Notica Developer Console.
+  * [x] Fix duplicate notification displays in the mock app client-side.
+  * [x] Implement dynamic CORS origin matching to support any localhost/127.0.0.1 developer port.
+  * [x] Optimize notification dispatches (parallel dispatching, dual payload inspector logs, and permission checks).

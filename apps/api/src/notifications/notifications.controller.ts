@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Req, UseGuards, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
@@ -24,6 +24,30 @@ export class NotificationsController {
   ) {
     const projectId = req.user?.projectId || '';
     return this.notificationsService.sendNotification(tenantId, projectId, dto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all notification history for the active tenant' })
+  @ApiResponse({ status: 200, description: 'List of all tenant notifications returned successfully.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  getAllNotifications(
+    @CurrentTenant() tenantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('channel') channel?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = parseInt(limit || '50', 10);
+    return this.notificationsService.getTenantNotifications(
+      tenantId,
+      pageNum,
+      limitNum,
+      channel,
+      status,
+      search,
+    );
   }
 
   @Get('recipient/:externalUserId')
