@@ -1,5 +1,5 @@
 (function () {
-  let _apiKey = null;
+  let _clientToken = null;
   let _recipientId = null;
   let _apiUrl = 'http://localhost:8000';
   let _wsUrl = 'http://localhost:8000';
@@ -19,11 +19,11 @@
 
   const Notica = {
     init(config) {
-      if (!config.apiKey) {
-        console.error('[Notica SDK] API Key is required');
+      if (!config.clientToken) {
+        console.error('[Notica SDK] A short-lived clientToken is required');
         return;
       }
-      _apiKey = config.apiKey;
+      _clientToken = config.clientToken;
       if (config.apiUrl) _apiUrl = config.apiUrl;
       if (config.wsUrl) _wsUrl = config.wsUrl;
       console.log('[Notica SDK] Initialized successfully');
@@ -48,17 +48,13 @@
       }
       _listeners.push(callback);
 
-      if (_recipientId) {
-        this._connectRealtime();
-      } else {
-        console.warn('[Notica SDK] Identified recipient is missing. Call Notica.identify() to receive real-time notifications.');
-      }
+      this._connectRealtime();
       return this;
     },
 
     async registerPush(swPath = '/sw.js') {
-      if (!_apiKey || !_recipientId) {
-        console.error('[Notica SDK] Notica must be initialized and recipient identified before registering push.');
+      if (!_clientToken) {
+        console.error('[Notica SDK] Notica must be initialized with a client token before registering push.');
         return false;
       }
 
@@ -81,7 +77,7 @@
 
         // 2. Fetch VAPID Public Key from Notica API
         const keyRes = await fetch(`${_apiUrl}/device-tokens/vapid-key`, {
-          headers: { 'x-api-key': _apiKey }
+          headers: { Authorization: `Bearer ${_clientToken}` }
         });
         
         if (!keyRes.ok) {
@@ -107,10 +103,9 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': _apiKey,
+            Authorization: `Bearer ${_clientToken}`,
           },
           body: JSON.stringify({
-            recipientId: _recipientId,
             token: subscription,
             platform: 'WEB'
           })
@@ -142,9 +137,11 @@
       console.log(`[Notica SDK] Connecting to Realtime Gateway: ${socketUrl}`);
 
       _socket = io(socketUrl, {
+        auth: {
+          token: _clientToken,
+        },
         query: {
-          apiKey: _apiKey,
-          recipientId: _recipientId,
+          recipientId: _recipientId || undefined,
         },
         transports: ['websocket'],
       });

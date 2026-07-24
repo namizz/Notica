@@ -8,7 +8,9 @@ export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
     super({
       clientID: process.env.GITHUB_CLIENT_ID || 'placeholder',
       clientSecret: process.env.GITHUB_CLIENT_SECRET || 'placeholder',
-      callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:8000/auth/github/callback',
+      callbackURL:
+        process.env.GITHUB_CALLBACK_URL ||
+        'http://localhost:8000/auth/github/callback',
       scope: ['user:email'],
     });
   }
@@ -20,7 +22,8 @@ export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
     done: any,
   ): Promise<any> {
     const { username, emails, id } = profile;
-    const email = emails && emails.length > 0 ? emails[0].value : `${username}@github.com`;
+    const email =
+      emails && emails.length > 0 ? emails[0].value : `${username}@github.com`;
     const user = {
       email,
       username,

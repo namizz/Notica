@@ -39,6 +39,8 @@ enum DeliveryStatus {
   PENDING
   SUCCESS
   FAILED
+  SKIPPED
+  SIMULATED
 }
 
 enum ChannelType {
@@ -72,13 +74,17 @@ model Tenant {
 }
 
 model Project {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  name      String
-  apiKey    String   @unique @map("api_key")
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  name         String
+  apiKeyHash   String   @unique @map("api_key_hash")
+  apiKeyPrefix String   @map("api_key_prefix")
+  createdAt    DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipientUsers RecipientUser[]
+  notifications Notification[]
+  deviceTokens DeviceToken[]
 
   @@map("projects")
 }
@@ -133,17 +139,21 @@ model UserSession {
 model RecipientUser {
   id             String   @id @default(uuid())
   tenantId       String   @map("tenant_id")
+  projectId      String   @map("project_id")
   externalUserId String   @map("external_user_id")
   name           String?
   email          String?
   createdAt      DateTime @default(now())
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   notifications Notification[]
   deviceTokens  DeviceToken[]
 
-  // Critical: Recipient identity is scoped to the tenant
-  @@unique([tenantId, externalUserId])
+  // Recipient identity is isolated per project.
+  @@unique([projectId, externalUserId])
+  @@index([tenantId])
+  @@index([projectId])
   @@map("recipient_users")
 }
 
@@ -152,6 +162,7 @@ model RecipientUser {
 model Notification {
   id              String             @id @default(uuid())
   tenantId        String             @map("tenant_id")
+  projectId       String             @map("project_id")
   recipientUserId String             @map("recipient_user_id")
   title           String
   body            String
@@ -162,9 +173,12 @@ model Notification {
   readAt          DateTime?          @map("read_at")
 
   tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project       Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
   recipientUser RecipientUser          @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
   deliveries    NotificationDelivery[]
 
+  @@index([tenantId])
+  @@index([projectId])
   @@map("notifications")
 }
 
@@ -185,13 +199,17 @@ model NotificationDelivery {
 model DeviceToken {
   id              String       @id @default(uuid())
   tenantId        String       @map("tenant_id")
+  projectId       String       @map("project_id")
   recipientUserId String       @map("recipient_user_id")
   token           String       @unique
   platform        PlatformType
   createdAt       DateTime     @default(now())
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   recipientUser RecipientUser @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([projectId])
   @@map("device_tokens")
 }

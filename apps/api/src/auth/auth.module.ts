@@ -8,6 +8,9 @@ import { GitHubStrategy } from './strategies/github.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ClientTokenStrategy } from './strategies/client-token.strategy';
+import { ClientTokensService } from './client-tokens.service';
+import { ClientTokensController } from './client-tokens.controller';
 
 @Module({
   imports: [
@@ -18,8 +21,23 @@ import { PrismaModule } from '../prisma/prisma.module';
       signOptions: { expiresIn: '1d' },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, ApiKeyStrategy, GoogleStrategy, GitHubStrategy],
-  exports: [AuthService, JwtStrategy, ApiKeyStrategy, PassportModule],
+  controllers: [AuthController, ClientTokensController],
+  providers: [
+    AuthService,
+    ClientTokensService,
+    JwtStrategy,
+    ApiKeyStrategy,
+    ClientTokenStrategy,
+    GoogleStrategy,
+    GitHubStrategy,
+  ],
+  exports: [
+    AuthService,
+    ClientTokensService,
+    JwtStrategy,
+    ApiKeyStrategy,
+    ClientTokenStrategy,
+    PassportModule,
+  ],
 })
 export class AuthModule {}
