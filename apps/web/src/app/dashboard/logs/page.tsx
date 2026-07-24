@@ -27,7 +27,7 @@ interface RecipientUser {
 interface DeliveryAttempt {
   id: string;
   provider: string;
-  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'SIMULATED';
   attemptCount: number;
   errorMessage: string | null;
   sentAt: string | null;
@@ -37,11 +37,16 @@ interface NotificationLog {
   id: string;
   title: string;
   body: string;
-  channel: 'IN_APP' | 'WEB_PUSH';
+  channel: 'IN_APP' | 'WEB_PUSH' | 'EMAIL';
   status: 'PENDING' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'FAILED';
   createdAt: string;
   recipientUser: RecipientUser;
   deliveries: DeliveryAttempt[];
+}
+
+interface Project {
+  id: string;
+  name: string;
 }
 
 export default function DeliveryLogsPage() {
@@ -51,6 +56,8 @@ export default function DeliveryLogsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
   // Filters
   const [search, setSearch] = useState('');
@@ -70,13 +77,30 @@ export default function DeliveryLogsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    void api.get('/projects').then(async (response) => {
+      if (!response.ok) {
+        setError('Failed to load projects.');
+        setLoading(false);
+        return;
+      }
+
+      const projectList = (await response.json()) as Project[];
+      setProjects(projectList);
+      setSelectedProjectId((current) => current || projectList[0]?.id || '');
+      if (projectList.length === 0) setLoading(false);
+    });
+  }, []);
+
   const fetchLogs = async () => {
+    if (!selectedProjectId) return;
     setLoading(true);
     setError(null);
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: '15',
+        projectId: selectedProjectId,
       });
       if (status) queryParams.append('status', status);
       if (channel) queryParams.append('channel', channel);
@@ -100,7 +124,7 @@ export default function DeliveryLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [page, status, channel, debouncedSearch]);
+  }, [page, status, channel, debouncedSearch, selectedProjectId]);
 
   const getStatusBadge = (logStatus: string) => {
     switch (logStatus) {
@@ -142,6 +166,14 @@ export default function DeliveryLogsPage() {
         <span className="inline-flex items-center gap-1.5 text-xs text-indigo-400">
           <Laptop className="h-3.5 w-3.5" />
           Web Push
+        </span>
+      );
+    }
+    if (logChannel === 'EMAIL') {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-amber-400">
+          <Send className="h-3.5 w-3.5" />
+          Email
         </span>
       );
     }
@@ -205,6 +237,21 @@ export default function DeliveryLogsPage() {
         {/* Filters Selectors */}
         <div className="flex flex-wrap sm:flex-nowrap gap-3 items-stretch">
           <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 bg-slate-950/60 border border-slate-850 text-slate-300 text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-violet-500 cursor-pointer min-w-[150px]"
+          >
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={channel}
             onChange={(e) => { setChannel(e.target.value); setPage(1); }}
             className="px-3 py-2 bg-slate-950/60 border border-slate-850 text-slate-300 text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-violet-500 cursor-pointer min-w-[120px]"
@@ -212,6 +259,7 @@ export default function DeliveryLogsPage() {
             <option value="">All Channels</option>
             <option value="IN_APP">In-App</option>
             <option value="WEB_PUSH">Web Push</option>
+            <option value="EMAIL">Email</option>
           </select>
 
           <select
@@ -223,6 +271,7 @@ export default function DeliveryLogsPage() {
             <option value="PENDING">PENDING</option>
             <option value="PROCESSING">PROCESSING</option>
             <option value="DELIVERED">DELIVERED</option>
+            <option value="SENT">SENT</option>
             <option value="FAILED">FAILED</option>
           </select>
         </div>

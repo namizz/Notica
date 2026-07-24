@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ mfaRequired?: boolean; user?: User; accessToken?: string }>;
-  register: (email: string, password: string, companyName: string) => Promise<{ user: User; accessToken: string; project: { id: string; name: string; apiKey: string } }>;
+  register: (email: string, password: string, companyName: string) => Promise<{ user: User; accessToken: string; project: { id: string; name: string; apiKeyPrefix: string; apiKey: string } }>;
   mfaAuthenticate: (email: string, code: string) => Promise<{ user: User; accessToken: string }>;
   logout: () => Promise<void>;
   setOAuthSession: (data: { accessToken: string; refreshToken: string; user: User }) => void;

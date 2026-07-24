@@ -139,7 +139,7 @@ export default function DocumentationPage() {
                 <strong className="text-slate-250">Backend Integration</strong>: Secure server-side REST API calls to identify recipient profiles, trigger notification messages, and manage device tokens using your secure <strong className="text-slate-300">API Key</strong>.
               </li>
               <li>
-                <strong className="text-slate-250">Frontend Client Integration</strong>: Using the client-side JavaScript SDK to establish real-time WebSocket connections and register background Service Workers to receive native browser push notifications.
+                <strong className="text-slate-250">Frontend Client Integration</strong>: Give the JavaScript SDK a short-lived, recipient-scoped client token issued by your backend. The SDK uses it for WebSocket connections and browser push registration without exposing your project API key.
               </li>
             </ul>
 
@@ -240,9 +240,30 @@ export default function DocumentationPage() {
               </div>
             </div>
 
+            {/* Issue Client Token */}
+            <div className="space-y-2 pt-4">
+              <h3 className="text-base font-bold text-white">3. Issue a Browser Client Token</h3>
+              <p className="text-slate-400 leading-normal">
+                Call this endpoint only from your backend after authenticating your application user. Return the short-lived token to that user&apos;s browser; never return the project API key.
+              </p>
+              <div className="flex items-center gap-2 text-xs font-mono py-1">
+                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 font-bold rounded">POST</span>
+                <span className="text-slate-350">http://localhost:8000/client-tokens</span>
+              </div>
+              <CodeSnippet
+                language="bash"
+                code={`curl -X POST http://localhost:8000/client-tokens \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: your-project-api-key-here" \\
+  -d '{
+    "recipientId": "shopper_789"
+  }'`}
+              />
+            </div>
+
             {/* Register Device Tokens */}
             <div className="space-y-2 pt-4">
-              <h3 className="text-base font-bold text-white">3. Register Push Subscription</h3>
+              <h3 className="text-base font-bold text-white">4. Register Push Subscription</h3>
               <p className="text-slate-400 leading-normal">
                 Save the browser push subscription token object to enable Web Push deliveries. This is usually invoked by the client-side Notica SDK.
               </p>
@@ -253,7 +274,6 @@ export default function DocumentationPage() {
               <CodeSnippet 
                 language="json"
                 code={`{
-  "recipientId": "shopper_789",
   "platform": "WEB",
   "token": {
     "endpoint": "https://fcm.googleapis.com/fcm/send/...",
@@ -333,14 +353,18 @@ export default function DocumentationPage() {
                   <h4 className="font-bold text-white">Initialize the SDK</h4>
                 </div>
                 <p className="text-xs text-slate-400 pl-9">
-                  Initialize the client library using your project API Key to configure the connection endpoints.
+                  Fetch a short-lived client token from your own authenticated backend, then initialize the client library. The project API key must never be placed in browser code.
                 </p>
                 <div className="pl-9">
                   <CodeSnippet 
                     language="javascript"
-                    code={`// Initialize Notica client
+code={`// Initialize Notica client
+const { clientToken } = await fetch("/api/notica/client-token", {
+  method: "POST"
+}).then((response) => response.json());
+
 Notica.init({
-  apiKey: "your-project-api-key-here",
+  clientToken,
   apiUrl: "http://localhost:8000",
   wsUrl: "http://localhost:8000"
 });`}
@@ -355,7 +379,7 @@ Notica.init({
                   <h4 className="font-bold text-white">Identify Active Recipient User</h4>
                 </div>
                 <p className="text-xs text-slate-400 pl-9">
-                  Identify the recipient user by passing their unique user ID to establish the real-time websocket connection.
+                  The client token already identifies the active recipient. Calling identify is optional and only stores a local label for compatibility.
                 </p>
                 <div className="pl-9">
                   <CodeSnippet 
