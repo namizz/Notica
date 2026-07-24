@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { EmailProvider } from './email-provider.interface';
+import { EmailDeliveryResult, EmailProvider } from './email-provider.interface';
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown SMTP error';
+}
 
 @Injectable()
 export class SmtpProvider implements EmailProvider, OnModuleInit {
@@ -14,7 +18,9 @@ export class SmtpProvider implements EmailProvider, OnModuleInit {
     const pass = process.env.SMTP_PASS;
 
     if (!host) {
-      this.logger.warn('SMTP_HOST is not configured. SMTP provider will be unavailable.');
+      this.logger.warn(
+        'SMTP_HOST is not configured. SMTP provider will be unavailable.',
+      );
       return;
     }
 
@@ -26,12 +32,18 @@ export class SmtpProvider implements EmailProvider, OnModuleInit {
         auth: user && pass ? { user, pass } : undefined,
       });
       this.logger.log(`SMTP provider initialized for host: ${host}`);
-    } catch (e: any) {
-      this.logger.error(`Failed to initialize SMTP transporter: ${e.message}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to initialize SMTP transporter: ${errorMessage(error)}`,
+      );
     }
   }
 
-  async send(to: string, subject: string, htmlContent: string): Promise<any> {
+  async send(
+    to: string,
+    subject: string,
+    htmlContent: string,
+  ): Promise<EmailDeliveryResult> {
     if (!this.transporter) {
       throw new Error('SMTP transporter is not initialized.');
     }
@@ -47,10 +59,15 @@ export class SmtpProvider implements EmailProvider, OnModuleInit {
     try {
       const info = await this.transporter.sendMail(mailOptions);
       this.logger.log(`Email sent successfully via SMTP: ${info.messageId}`);
-      return info;
-    } catch (e: any) {
-      this.logger.error(`Error sending email via SMTP: ${e.message}`);
-      throw e;
+      return {
+        messageId: info.messageId,
+        provider: 'smtp',
+        delivered: true,
+        simulated: false,
+      };
+    } catch (error: unknown) {
+      this.logger.error(`Error sending email via SMTP: ${errorMessage(error)}`);
+      throw error;
     }
   }
 }

@@ -1,5 +1,22 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, Get, Param, Delete, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
+  Get,
+  Param,
+  Delete,
+  Res,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -18,8 +35,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new tenant organization and default project' })
-  @ApiResponse({ status: 201, description: 'Tenant registered successfully and default API key generated.' })
+  @ApiOperation({
+    summary: 'Register a new tenant organization and default project',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Tenant registered successfully and default API key generated.',
+  })
   @ApiResponse({ status: 409, description: 'Email already exists.' })
   register(@Body() registerDto: RegisterDto, @Req() req: any) {
     const userAgent = req.headers['user-agent'];
@@ -30,8 +53,15 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login using dashboard credentials' })
-  @ApiResponse({ status: 200, description: 'JWT authentication tokens returned successfully (or MFA required).' })
-  @ApiResponse({ status: 401, description: 'Invalid email or password / Account locked.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'JWT authentication tokens returned successfully (or MFA required).',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid email or password / Account locked.',
+  })
   login(@Body() loginDto: LoginDto, @Req() req: any) {
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip;
@@ -42,11 +72,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using a valid refresh token' })
   @ApiResponse({ status: 200, description: 'Tokens rotated successfully.' })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired refresh token.',
+  })
   refresh(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: any) {
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip;
-    return this.authService.refreshTokens(refreshTokenDto.refreshToken, userAgent, ipAddress);
+    return this.authService.refreshTokens(
+      refreshTokenDto.refreshToken,
+      userAgent,
+      ipAddress,
+    );
   }
 
   @Post('logout')
@@ -66,8 +103,14 @@ export class AuthController {
   @Post('2fa/generate')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Generate Two-Factor Authentication TOTP secret and QR code data URL' })
-  @ApiResponse({ status: 200, description: 'TOTP secret and QR Code Data URI returned successfully.' })
+  @ApiOperation({
+    summary:
+      'Generate Two-Factor Authentication TOTP secret and QR code data URL',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'TOTP secret and QR Code Data URI returned successfully.',
+  })
   generate2Fa(@Req() req: any) {
     const userId = req.user?.userId;
     return this.authService.generateTwoFactorSecret(userId);
@@ -87,7 +130,10 @@ export class AuthController {
   @Post('2fa/authenticate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate using a 2FA code' })
-  @ApiResponse({ status: 200, description: 'JWT authentication tokens returned successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'JWT authentication tokens returned successfully.',
+  })
   @ApiResponse({ status: 401, description: 'Invalid 2FA code.' })
   authenticate2Fa(@Body() body: TwoFactorLoginDto, @Req() req: any) {
     const userAgent = req.headers['user-agent'];
@@ -100,7 +146,10 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request a password reset link' })
-  @ApiResponse({ status: 200, description: 'Reset link generated successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Reset link generated successfully.',
+  })
   forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto.email);
   }
@@ -120,7 +169,10 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all active sessions for the user' })
-  @ApiResponse({ status: 200, description: 'List of active sessions returned successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of active sessions returned successfully.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   getSessions(@Req() req: any) {
     const userId = req.user?.userId;
@@ -130,7 +182,9 @@ export class AuthController {
   @Delete('sessions/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Revoke a specific session (Log out remote device)' })
+  @ApiOperation({
+    summary: 'Revoke a specific session (Log out remote device)',
+  })
   @ApiResponse({ status: 200, description: 'Session revoked successfully.' })
   @ApiResponse({ status: 404, description: 'Session not found.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
@@ -142,8 +196,13 @@ export class AuthController {
   @Delete('sessions')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Revoke all other active sessions (Log out all other devices)' })
-  @ApiResponse({ status: 200, description: 'All other sessions revoked successfully.' })
+  @ApiOperation({
+    summary: 'Revoke all other active sessions (Log out all other devices)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All other sessions revoked successfully.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   revokeOtherSessions(@Req() req: any) {
     const userId = req.user?.userId;
@@ -163,11 +222,18 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth2 login callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens.' })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to frontend with tokens.',
+  })
   async googleAuthCallback(@Req() req: any, @Res() res: any) {
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip;
-    const result = await this.authService.validateOAuthUser(req.user, userAgent, ipAddress);
+    const result = await this.authService.validateOAuthUser(
+      req.user,
+      userAgent,
+      ipAddress,
+    );
     const query = new URLSearchParams({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
@@ -191,11 +257,18 @@ export class AuthController {
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
   @ApiOperation({ summary: 'GitHub OAuth2 login callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens.' })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to frontend with tokens.',
+  })
   async githubAuthCallback(@Req() req: any, @Res() res: any) {
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip;
-    const result = await this.authService.validateOAuthUser(req.user, userAgent, ipAddress);
+    const result = await this.authService.validateOAuthUser(
+      req.user,
+      userAgent,
+      ipAddress,
+    );
     const query = new URLSearchParams({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,

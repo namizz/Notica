@@ -3,6 +3,12 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
+import { hashApiKey } from '../utils/api-key.util';
+
+interface ApiKeyPrincipal {
+  projectId: string;
+  tenantId: string;
+}
 
 @Injectable()
 export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
@@ -10,7 +16,7 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
     super();
   }
 
-  async validate(req: Request): Promise<any> {
+  async validate(req: Request): Promise<ApiKeyPrincipal> {
     // Extract api key from header
     const apiKey = req.headers['x-api-key'] as string;
 
@@ -18,8 +24,9 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
       throw new UnauthorizedException('API key is missing');
     }
 
+    const apiKeyHash = hashApiKey(apiKey);
     const project = await this.prisma.project.findUnique({
-      where: { apiKey },
+      where: { apiKeyHash },
     });
 
     if (!project) {

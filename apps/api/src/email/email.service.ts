@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SmtpProvider } from './smtp.provider';
 import { ConsoleProvider } from './console.provider';
-import { EmailProvider } from './email-provider.interface';
+import { EmailDeliveryResult, EmailProvider } from './email-provider.interface';
 
 @Injectable()
 export class EmailService {
@@ -22,7 +22,11 @@ export class EmailService {
     }
   }
 
-  async sendEmail(to: string, subject: string, htmlContent: string): Promise<any> {
+  async sendEmail(
+    to: string,
+    subject: string,
+    htmlContent: string,
+  ): Promise<EmailDeliveryResult> {
     return this.activeProvider.send(to, subject, htmlContent);
   }
 }

@@ -3,9 +3,21 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as express from 'express';
 import { join } from 'path';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: false,
+      },
+    }),
+  );
 
   // Serve the SDK statically
   app.use('/sdk', express.static(join(process.cwd(), 'public')));
@@ -21,7 +33,10 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, documentFactory);
 
   app.enableCors({
-    origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
       if (!origin) {
         return callback(null, true);
       }
@@ -54,7 +69,9 @@ async function bootstrap() {
   console.log(`  --------------------------------------------------`);
   console.log(`  Backend API:  http://localhost:${port}`);
   console.log(`  Swagger Docs: http://localhost:${port}/api-docs`);
-  console.log(`  Frontend Web: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  console.log(
+    `  Frontend Web: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`,
+  );
   console.log(`====================================================\n`);
 }
-bootstrap();
+void bootstrap();

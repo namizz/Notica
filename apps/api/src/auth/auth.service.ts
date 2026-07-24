@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -10,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { TwoFactorLoginDto } from './dto/two-factor-login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Role } from '@prisma/client';
+import { createApiKeyCredential } from './utils/api-key.util';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +25,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  private async createSession(userId: string, email: string, userAgent?: string, ipAddress?: string) {
+  private async createSession(
+    userId: string,
+    email: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     // 1. Create a session record first to get a unique sessionId
     const session = await this.prisma.userSession.create({
       data: {
@@ -90,24 +102,29 @@ export class AuthService {
         },
       });
 
-      // 3. Generate secure API key
-      const randomKey = crypto.randomBytes(24).toString('hex');
-      const apiKey = `ntc_live_${randomKey}`;
+      // 3. Generate the default project's one-time API key.
+      const apiKeyCredential = createApiKeyCredential();
 
-      // 4. Create default project
+      // 4. Store only its hash and non-secret prefix.
       const project = await tx.project.create({
         data: {
           tenantId: tenant.id,
           name: 'Default Project',
-          apiKey,
+          apiKeyHash: apiKeyCredential.hash,
+          apiKeyPrefix: apiKeyCredential.prefix,
         },
       });
 
-      return { user, tenant, project };
+      return { user, tenant, project, rawApiKey: apiKeyCredential.rawKey };
     });
 
     // Create session and generate tokens
-    const tokens = await this.createSession(result.user.id, result.user.email, userAgent, ipAddress);
+    const tokens = await this.createSession(
+      result.user.id,
+      result.user.email,
+      userAgent,
+      ipAddress,
+    );
 
     return {
       ...tokens,
@@ -122,7 +139,8 @@ export class AuthService {
       project: {
         id: result.project.id,
         name: result.project.name,
-        apiKey: result.project.apiKey,
+        apiKeyPrefix: result.project.apiKeyPrefix,
+        apiKey: result.rawApiKey,
       },
     };
   }
@@ -138,11 +156,18 @@ export class AuthService {
 
     // Check Account Lockout
     if (user.lockoutUntil && new Date() < user.lockoutUntil) {
-      const minutesLeft = Math.ceil((user.lockoutUntil.getTime() - Date.now()) / 60000);
-      throw new UnauthorizedException(`Account temporarily locked. Try again in ${minutesLeft} minute(s).`);
+      const minutesLeft = Math.ceil(
+        (user.lockoutUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new UnauthorizedException(
+        `Account temporarily locked. Try again in ${minutesLeft} minute(s).`,
+      );
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
       // Increment failed login attempts
       const attempts = user.failedLoginAttempts + 1;
@@ -155,7 +180,9 @@ export class AuthService {
             lockoutUntil: new Date(Date.now() + 15 * 60 * 1000),
           },
         });
-        throw new UnauthorizedException('Account locked for 15 minutes due to too many failed attempts.');
+        throw new UnauthorizedException(
+          'Account locked for 15 minutes due to too many failed attempts.',
+        );
       } else {
         await this.prisma.dashboardUser.update({
           where: { id: user.id },
@@ -180,7 +207,12 @@ export class AuthService {
     }
 
     // Generate tokens under a new session
-    const tokens = await this.createSession(user.id, user.email, userAgent, ipAddress);
+    const tokens = await this.createSession(
+      user.id,
+      user.email,
+      userAgent,
+      ipAddress,
+    );
 
     return {
       ...tokens,
@@ -226,7 +258,9 @@ export class AuthService {
     });
 
     if (!user || !user.twoFactorSecret) {
-      throw new BadRequestException('Two-factor authentication has not been initialized');
+      throw new BadRequestException(
+        'Two-factor authentication has not been initialized',
+      );
     }
 
     const isCodeValid = authenticator.verify({
@@ -246,7 +280,11 @@ export class AuthService {
     return { message: 'Two-factor authentication enabled successfully' };
   }
 
-  async authenticateTwoFactor(dto: TwoFactorLoginDto, userAgent?: string, ipAddress?: string) {
+  async authenticateTwoFactor(
+    dto: TwoFactorLoginDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     const user = await this.prisma.dashboardUser.findUnique({
       where: { email: dto.email },
     });
@@ -265,7 +303,12 @@ export class AuthService {
     }
 
     // Code is valid, issue final tokens under a new session
-    const tokens = await this.createSession(user.id, user.email, userAgent, ipAddress);
+    const tokens = await this.createSession(
+      user.id,
+      user.email,
+      userAgent,
+      ipAddress,
+    );
 
     return {
       ...tokens,
@@ -285,7 +328,10 @@ export class AuthService {
 
     // To prevent email harvesting/enumeration, we always return a success response
     if (!user) {
-      return { message: 'If the email exists, a password reset link has been generated.' };
+      return {
+        message:
+          'If the email exists, a password reset link has been generated.',
+      };
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -300,7 +346,9 @@ export class AuthService {
     });
 
     // Log the link to the console for development testing
-    console.log(`\n=== PASSWORD RESET LINK ===\nhttp://localhost:3000/reset-password?token=${token}\n===========================\n`);
+    console.log(
+      `\n=== PASSWORD RESET LINK ===\nhttp://localhost:3000/reset-password?token=${token}\n===========================\n`,
+    );
 
     return {
       message: 'Reset link generated successfully.',
@@ -309,13 +357,20 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const tokenHash = crypto.createHash('sha256').update(dto.token).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(dto.token)
+      .digest('hex');
 
     const user = await this.prisma.dashboardUser.findUnique({
       where: { resetPasswordToken: tokenHash },
     });
 
-    if (!user || !user.resetPasswordExpiresAt || new Date() > user.resetPasswordExpiresAt) {
+    if (
+      !user ||
+      !user.resetPasswordExpiresAt ||
+      new Date() > user.resetPasswordExpiresAt
+    ) {
       throw new BadRequestException('Invalid or expired password reset token');
     }
 
@@ -338,10 +393,22 @@ export class AuthService {
       }),
     ]);
 
-    return { message: 'Password has been reset successfully. All active sessions logged out.' };
+    return {
+      message:
+        'Password has been reset successfully. All active sessions logged out.',
+    };
   }
 
-  async validateOAuthUser(profile: { email: string; provider: string; providerId: string; name?: string }, userAgent?: string, ipAddress?: string) {
+  async validateOAuthUser(
+    profile: {
+      email: string;
+      provider: string;
+      providerId: string;
+      name?: string;
+    },
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     let user = await this.prisma.dashboardUser.findUnique({
       where: { email: profile.email },
     });
@@ -360,7 +427,9 @@ export class AuthService {
     } else {
       // New social signup
       const result = await this.prisma.$transaction(async (tx) => {
-        const companyName = profile.name ? `${profile.name}'s Organization` : `${profile.email.split('@')[0]}'s Organization`;
+        const companyName = profile.name
+          ? `${profile.name}'s Organization`
+          : `${profile.email.split('@')[0]}'s Organization`;
         const tenant = await tx.tenant.create({
           data: { name: companyName },
         });
@@ -376,14 +445,14 @@ export class AuthService {
           },
         });
 
-        const randomKey = crypto.randomBytes(24).toString('hex');
-        const apiKey = `ntc_live_${randomKey}`;
+        const apiKeyCredential = createApiKeyCredential();
 
         await tx.project.create({
           data: {
             tenantId: tenant.id,
             name: 'Default Project',
-            apiKey,
+            apiKeyHash: apiKeyCredential.hash,
+            apiKeyPrefix: apiKeyCredential.prefix,
           },
         });
 
@@ -393,7 +462,12 @@ export class AuthService {
       user = result.user;
     }
 
-    const tokens = await this.createSession(user.id, user.email, userAgent, ipAddress);
+    const tokens = await this.createSession(
+      user.id,
+      user.email,
+      userAgent,
+      ipAddress,
+    );
 
     return {
       ...tokens,
@@ -408,7 +482,11 @@ export class AuthService {
     };
   }
 
-  async refreshTokens(refreshToken: string, userAgent?: string, ipAddress?: string) {
+  async refreshTokens(
+    refreshToken: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     let payload: any;
     try {
       payload = await this.jwtService.verifyAsync(refreshToken, {
@@ -429,7 +507,10 @@ export class AuthService {
       throw new UnauthorizedException('Session expired or invalid');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(refreshToken, session.refreshTokenHash);
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      session.refreshTokenHash,
+    );
     if (!isRefreshTokenValid) {
       throw new UnauthorizedException('Access Denied');
     }
