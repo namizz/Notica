@@ -1,16 +1,25 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { api } from '@/lib/api';
-import { io } from 'socket.io-client';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { api, getAccessToken } from '@/lib/api';
+import { io, Socket } from 'socket.io-client';
 import { ActivityConsole, ConsoleLog } from '@/components/ActivityConsole';
 import { Terminal, Activity } from 'lucide-react';
 
 interface Project {
   id: string;
   name: string;
-  apiKey: string;
+  apiKeyPrefix: string;
   createdAt: string;
+}
+
+interface RealtimeLogEvent {
+  timestamp: string;
+  type: ConsoleLog['type'];
+  message: string;
+  notificationId?: string;
+  recipientId?: string;
+  channel?: string;
 }
 
 export default function RealTimeConsolePage() {
@@ -22,30 +31,32 @@ export default function RealTimeConsolePage() {
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
   const [selectedLogProjectId, setSelectedLogProjectId] = useState<string>('');
   const [isConsoleConnected, setIsConsoleConnected] = useState(false);
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const res = await api.get('/projects');
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as Project[];
         setProjects(data);
-        if (data.length > 0 && !selectedLogProjectId) {
-          setSelectedLogProjectId(data[0].id);
-        }
+        setSelectedLogProjectId((currentId) => currentId || data[0]?.id || '');
       } else {
         setError('Failed to fetch projects.');
       }
-    } catch (e) {
+    } catch {
       setError('An error occurred while loading projects.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    const initializationTimer = window.setTimeout(() => {
+      void fetchProjects();
+    }, 0);
+
+    return () => window.clearTimeout(initializationTimer);
+  }, [fetchProjects]);
 
   useEffect(() => {
     const activeProject = projects.find(p => p.id === selectedLogProjectId);
@@ -65,10 +76,18 @@ export default function RealTimeConsolePage() {
       socketRef.current.disconnect();
     }
 
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      return;
+    }
+
     const socket = io(`${wsUrl}/realtime`, {
+      auth: {
+        token: accessToken,
+      },
       query: {
-        apiKey: activeProject.apiKey,
         recipientId: 'dashboard',
+        projectId: activeProject.id,
       },
       transports: ['websocket'],
     });
@@ -87,7 +106,7 @@ export default function RealTimeConsolePage() {
       ]);
     });
 
-    socket.on('log_event', (logData: any) => {
+    socket.on('log_event', (logData: RealtimeLogEvent) => {
       setConsoleLogs(prev => [
         {
           timestamp: new Date(logData.timestamp),

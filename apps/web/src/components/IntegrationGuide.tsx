@@ -96,7 +96,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             <br />
             &nbsp;&nbsp;Notica.init(&#123;
             <br />
-            &nbsp;&nbsp;&nbsp;&nbsp;apiKey: <span className="text-emerald-400">&apos;{apiKey}&apos;</span>,
+            &nbsp;&nbsp;&nbsp;&nbsp;clientToken: <span className="text-emerald-400">&apos;short-lived-token-from-your-backend&apos;</span>,
             <br />
             &nbsp;&nbsp;&nbsp;&nbsp;apiUrl: <span className="text-emerald-400">&apos;http://localhost:8000&apos;</span>,
             <br />
@@ -105,7 +105,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             &nbsp;&nbsp;&#125;);
             <br />
             <br />
-            &nbsp;&nbsp;<span className="text-slate-500">// Identify customer session</span>
+            &nbsp;&nbsp;<span className="text-slate-500">// The token already identifies and scopes this recipient</span>
             <br />
             &nbsp;&nbsp;Notica.identify(<span className="text-emerald-400">&apos;customer_789&apos;</span>);
             <br />
