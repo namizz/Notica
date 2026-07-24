@@ -23,6 +23,8 @@
   * [x] Implement Frontend Auth Pages (Signup, Login, Forgot & Reset Password) with Input Validation.
   * [x] Implement Frontend Auth State, Guards, and Silent Token Refresh Interceptor.
   * [x] Implement Frontend Dashboard (Manage Projects, rotate API keys).
+  * [x] Store project API keys as SHA-256 digests and display raw keys only once
+    during creation or rotation.
   * [x] Implement Frontend Session & Security Management (2FA setup, active sessions revocation).
   * [x] Apply security measures (XSS/CSRF mitigation, client route guards, token rotation, secure local storage management).
 * **Next Goal**: Implement Recipient User Management & Redis/BullMQ queue system.
@@ -54,6 +56,8 @@
   * [x] Install and configure `web-push` (VAPID keys) to dispatch native browser alerts.
   * [x] Integrate background browser push delivery inside the BullMQ worker.
   * [x] Create a client-side JavaScript SDK to identify recipients and listen to real-time events.
+  * [x] Authenticate the browser SDK with short-lived, project- and recipient-scoped client tokens.
+  * [x] Enforce project scope for recipients, notifications, device tokens, dashboard logs, and realtime rooms.
   * [x] Implement background Service Worker (`sw.js`) inside the client browser context.
   * [x] Integrate real-time log alerts inside the Notica Developer Console.
   * [x] Fix duplicate notification displays in the mock app client-side.
@@ -63,12 +67,24 @@
 
 ---
 
-## Checkpoint 5: Email Notification Channel (Current Goal)
+## Checkpoint 5: Email Notification Channel (Completed)
 * **Goal**: Implement email notification delivery using an extensible provider/adapter pattern (supporting SMTP and local Console fallback initially, and structurally prepared to add Resend, SendGrid, or other API-based providers in the future) integrated into NestJS and BullMQ.
 * **Progress**:
-  * [ ] Add `EMAIL` to the Prisma `ChannelType` enum and execute migrations.
-  * [ ] Create NestJS `EmailModule` with an extensible `EmailProvider` interface, implementing `SmtpProvider` and `ConsoleProvider`.
-  * [ ] Add the `EMAIL` handler to the BullMQ `NotificationsProcessor`.
-  * [ ] Document the Email channel usage in the developer **Documentation** tab.
-  * [ ] Validate email delivery via console logs or a test SMTP server (Maildev).
+  * [x] Add `EMAIL` to the Prisma `ChannelType` enum and execute migrations.
+  * [x] Create NestJS `EmailModule` with an extensible `EmailProvider` interface, implementing `SmtpProvider` and `ConsoleProvider`.
+  * [x] Add the `EMAIL` handler to the BullMQ `NotificationsProcessor`.
+  * [x] Document the Email channel usage in the developer **Documentation** tab.
+  * [x] Distinguish console simulation from real SMTP delivery and cover the simulation path with a unit test.
+
+---
+
+## Checkpoint 6: High-Priority Correctness Remediation (Completed)
+* **Goal**: Resolve the high-priority security, isolation, validation, and delivery-status inconsistencies found in the July 24, 2026 audit.
+* **Progress**:
+  * [x] Add strict runtime validation and typed public DTOs.
+  * [x] Add project scope to persisted and realtime notification data.
+  * [x] Add recipient-scoped browser tokens without exposing project API keys.
+  * [x] Add accurate `SKIPPED` and `SIMULATED` delivery states and per-device Web Push attempts.
+  * [x] Verify all migrations on a clean database and upgrade the local development database with no Prisma drift.
+  * [x] Add focused browser-token and delivery-outcome tests.
 
