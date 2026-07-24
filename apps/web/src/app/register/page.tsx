@@ -35,7 +35,12 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(email, password, companyName);
+      const result = await register(email, password, companyName);
+      sessionStorage.setItem('notica:new-api-key', JSON.stringify({
+        projectId: result.project.id,
+        projectName: result.project.name,
+        apiKey: result.project.apiKey,
+      }));
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');

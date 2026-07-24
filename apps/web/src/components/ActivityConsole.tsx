@@ -13,7 +13,7 @@ export interface ConsoleLog {
 interface Project {
   id: string;
   name: string;
-  apiKey: string;
+  apiKeyPrefix: string;
   createdAt: string;
 }
 
