@@ -264,8 +264,14 @@ created_at
 id
 tenant_id
 name
-api_key
+api_key_hash
+api_key_prefix
 ```
+
+The complete API key is returned only once when a project is created or its key
+is rotated. Notica stores a SHA-256 digest for authentication and a short,
+non-secret prefix for identification in the dashboard. Stored keys cannot be
+recovered or revealed.
 
 ---
 
@@ -439,7 +445,8 @@ Use: logs, metrics, dashboards. Even simple logging initially is enough.
 
 # 13. Security
 
-* **API keys:** Hash them in DB. Never store raw keys. Example: `ntc_live_xxxxx`
+* **API keys:** API keys are stored as SHA-256 digests with a non-secret display
+  prefix. The raw `ntc_live_xxxxx` value is shown only at creation or rotation.
 * **Rate limiting:** Prevent abuse (e.g., 100 req/min).
 * **Validation:** Strict schema validation using Zod or class-validator.
 
@@ -525,7 +532,8 @@ Tenant (organization)
               +--> Notifications
 ```
 
-Recipient identity should be: `(tenant_id + external_user_id)`. NOT global user IDs.
+Recipient identity is `(tenant_id + project_id + external_user_id)`. Recipient
+IDs are not global, and projects are data/security boundaries.
 
 ---
 
