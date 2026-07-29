@@ -32,7 +32,7 @@ export function NotificationDemo() {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/8 bg-slate-950/70 p-5 shadow-2xl shadow-violet-950/20 sm:p-7">
+    <div className="public-demo relative overflow-hidden rounded-3xl border border-white/8 bg-slate-950/70 p-5 shadow-2xl shadow-violet-950/20 sm:p-7">
       <div className="absolute inset-x-16 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/70 to-transparent" />
       <div className="mb-6 flex items-center justify-between">
         <div>
