@@ -7,6 +7,8 @@ interface IntegrationGuideProps {
 
 export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
   const [activeTab, setActiveTab] = useState('nodejs');
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || apiUrl;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -47,7 +49,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             &nbsp;&nbsp;<span className="text-violet-400">const</span> &#123; userId, message &#125; = <span className="text-violet-400">await</span> req.json();
             <br />
             <br />
-            &nbsp;&nbsp;<span className="text-violet-400">const</span> res = <span className="text-violet-400">await</span> fetch(<span className="text-emerald-400">&apos;http://localhost:8000/notifications&apos;</span>, &#123;
+            &nbsp;&nbsp;<span className="text-violet-400">const</span> res = <span className="text-violet-400">await</span> fetch(<span className="text-emerald-400">&apos;{apiUrl}/notifications&apos;</span>, &#123;
             <br />
             &nbsp;&nbsp;&nbsp;&nbsp;method: <span className="text-emerald-400">&apos;POST&apos;</span>,
             <br />
@@ -87,7 +89,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             <br />
             <span className="text-slate-400">&lt;</span><span className="text-violet-400">script</span> <span className="text-amber-400">src</span>=<span className="text-emerald-400">&quot;https://cdn.socket.io/4.7.5/socket.io.min.js&quot;</span><span className="text-slate-400">&gt;&lt;/</span><span className="text-violet-400">script</span><span className="text-slate-400">&gt;</span>
             <br />
-            <span className="text-slate-400">&lt;</span><span className="text-violet-400">script</span> <span className="text-amber-400">src</span>=<span className="text-emerald-400">&quot;http://localhost:8000/sdk/notica.js&quot;</span><span className="text-slate-400">&gt;&lt;/</span><span className="text-violet-400">script</span><span className="text-slate-400">&gt;</span>
+            <span className="text-slate-400">&lt;</span><span className="text-violet-400">script</span> <span className="text-amber-400">src</span>=<span className="text-emerald-400">&quot;{apiUrl}/sdk/notica.js&quot;</span><span className="text-slate-400">&gt;&lt;/</span><span className="text-violet-400">script</span><span className="text-slate-400">&gt;</span>
             <br />
             <br />
             <span className="text-slate-400">&lt;</span><span className="text-violet-400">script</span><span className="text-slate-400">&gt;</span>
@@ -98,9 +100,9 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             <br />
             &nbsp;&nbsp;&nbsp;&nbsp;clientToken: <span className="text-emerald-400">&apos;short-lived-token-from-your-backend&apos;</span>,
             <br />
-            &nbsp;&nbsp;&nbsp;&nbsp;apiUrl: <span className="text-emerald-400">&apos;http://localhost:8000&apos;</span>,
+            &nbsp;&nbsp;&nbsp;&nbsp;apiUrl: <span className="text-emerald-400">&apos;{apiUrl}&apos;</span>,
             <br />
-            &nbsp;&nbsp;&nbsp;&nbsp;wsUrl: <span className="text-emerald-400">&apos;http://localhost:8000&apos;</span>
+            &nbsp;&nbsp;&nbsp;&nbsp;wsUrl: <span className="text-emerald-400">&apos;{wsUrl}&apos;</span>
             <br />
             &nbsp;&nbsp;&#125;);
             <br />
