@@ -1,0 +1,250 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Notica notification platform architecture</title>
+  <desc id="desc">A left-to-right architecture diagram showing client applications entering a secure NestJS modular monolith, persisted in PostgreSQL, queued with Redis and BullMQ, and delivered through in-app, Web Push, or email channels.</desc>
+
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b14"/>
+      <stop offset="0.55" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#11152a"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" fill="none" stroke="#94a3b8" stroke-opacity=".045"/>
+    </pattern>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity=".28"/>
+    </filter>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <marker id="arrowViolet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#22d3ee"/>
+    </marker>
+    <style>
+      .heading { font: 700 38px Inter, Segoe UI, sans-serif; fill: #f8fafc; letter-spacing: -.5px; }
+      .subheading { font: 400 17px Inter, Segoe UI, sans-serif; fill: #94a3b8; }
+      .section { font: 700 14px Inter, Segoe UI, sans-serif; fill: #c4b5fd; letter-spacing: 2.2px; }
+      .box-title { font: 700 17px Inter, Segoe UI, sans-serif; fill: #f8fafc; }
+      .box-copy { font: 400 13px Inter, Segoe UI, sans-serif; fill: #94a3b8; }
+      .tiny { font: 600 11px Inter, Segoe UI, sans-serif; fill: #cbd5e1; letter-spacing: .4px; }
+      .step { font: 700 11px Inter, Segoe UI, sans-serif; fill: #ddd6fe; letter-spacing: .5px; }
+      .panel { fill: #111827; stroke: #273449; stroke-width: 1.3; }
+      .inner { fill: #0c1424; stroke: #25324a; stroke-width: 1.1; }
+      .arrow-v { fill: none; stroke: #8b5cf6; stroke-width: 3; marker-end: url(#arrowViolet); }
+      .arrow-c { fill: none; stroke: #22d3ee; stroke-width: 3; marker-end: url(#arrowCyan); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#background)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+  <circle cx="1120" cy="80" r="230" fill="#7c3aed" opacity=".07" filter="url(#glow)"/>
+  <circle cx="250" cy="850" r="220" fill="#0284c7" opacity=".06" filter="url(#glow)"/>
+
+  <g transform="translate(64 48)">
+    <rect x="0" y="0" width="44" height="44" rx="12" fill="url(#violet)"/>
+    <path d="M13 31V13h5l9 10V13h5v18h-5l-9-10v10z" fill="#fff"/>
+    <text x="60" y="29" class="heading">Notica System Architecture</text>
+    <text x="60" y="58" class="subheading">Secure, asynchronous notification infrastructure built as a modular monolith</text>
+  </g>
+
+  <g transform="translate(64 146)">
+    <text x="0" y="0" class="section">CLIENTS</text>
+
+    <g transform="translate(0 30)" filter="url(#shadow)">
+      <rect width="238" height="112" rx="18" class="panel"/>
+      <circle cx="32" cy="34" r="14" fill="#8b5cf6" opacity=".16"/>
+      <path d="M25 34h14M32 27v14" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+      <text x="56" y="39" class="box-title">Client Backend</text>
+      <text x="24" y="72" class="box-copy">Project API key</text>
+      <text x="24" y="92" class="box-copy">HTTPS notification requests</text>
+    </g>
+
+    <g transform="translate(0 166)" filter="url(#shadow)">
+      <rect width="238" height="112" rx="18" class="panel"/>
+      <circle cx="32" cy="34" r="14" fill="#22d3ee" opacity=".14"/>
+      <rect x="26" y="27" width="12" height="14" rx="2" fill="none" stroke="#67e8f9" stroke-width="2"/>
+      <text x="56" y="39" class="box-title">Browser SDK</text>
+      <text x="24" y="72" class="box-copy">Scoped recipient token</text>
+      <text x="24" y="92" class="box-copy">Realtime + push subscription</text>
+    </g>
+
+    <g transform="translate(0 302)" filter="url(#shadow)">
+      <rect width="238" height="112" rx="18" class="panel"/>
+      <circle cx="32" cy="34" r="14" fill="#10b981" opacity=".14"/>
+      <path d="M25 28h14v11H25zM29 42h6" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+      <text x="56" y="39" class="box-title">Next.js Dashboard</text>
+      <text x="24" y="72" class="box-copy">Projects, logs, security</text>
+      <text x="24" y="92" class="box-copy">Documentation + console</text>
+    </g>
+  </g>
+
+  <g transform="translate(360 146)">
+    <rect width="838" height="612" rx="28" fill="#0d1424" stroke="#6d5bd0" stroke-width="1.7" filter="url(#shadow)"/>
+    <rect x="1" y="1" width="836" height="76" rx="27" fill="#15162a"/>
+    <path d="M1 76H837" stroke="#2d2d4e"/>
+    <circle cx="36" cy="38" r="17" fill="url(#violet)"/>
+    <path d="M28 43V31h4l7 7v-7h4v12h-4l-7-7v7z" fill="#fff"/>
+    <text x="66" y="35" class="box-title">NestJS Modular Monolith</text>
+    <text x="66" y="56" class="box-copy">Clear module boundaries · one deployable backend</text>
+    <g transform="translate(622 24)">
+      <rect width="184" height="30" rx="15" fill="#8b5cf6" opacity=".13" stroke="#8b5cf6" stroke-opacity=".38"/>
+      <circle cx="18" cy="15" r="5" fill="#34d399"/>
+      <text x="32" y="19" class="tiny">SECURE API BOUNDARY</text>
+    </g>
+
+    <g transform="translate(28 102)">
+      <rect width="246" height="108" rx="17" class="inner"/>
+      <circle cx="28" cy="30" r="12" fill="#8b5cf6" opacity=".16"/>
+      <path d="M28 23l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10v-5z" fill="none" stroke="#a78bfa" stroke-width="1.8"/>
+      <text x="50" y="35" class="box-title">Auth &amp; Security</text>
+      <text x="20" y="68" class="box-copy">JWT · OAuth · sessions</text>
+      <text x="20" y="89" class="box-copy">QR-based two-factor authentication</text>
+    </g>
+
+    <g transform="translate(296 102)">
+      <rect width="246" height="108" rx="17" class="inner"/>
+      <circle cx="28" cy="30" r="12" fill="#f59e0b" opacity=".14"/>
+      <path d="M23 30h10M30 25l5 5-5 5" fill="none" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="50" y="35" class="box-title">Projects &amp; Keys</text>
+      <text x="20" y="68" class="box-copy">SHA-256 key hashing</text>
+      <text x="20" y="89" class="box-copy">One-time key display + rotation</text>
+    </g>
+
+    <g transform="translate(564 102)">
+      <rect width="246" height="108" rx="17" class="inner"/>
+      <circle cx="28" cy="30" r="12" fill="#22d3ee" opacity=".14"/>
+      <circle cx="28" cy="27" r="4" fill="none" stroke="#67e8f9" stroke-width="1.7"/>
+      <path d="M21 38c1-5 13-5 14 0" fill="none" stroke="#67e8f9" stroke-width="1.7"/>
+      <text x="50" y="35" class="box-title">Recipients</text>
+      <text x="20" y="68" class="box-copy">Project-scoped identities</text>
+      <text x="20" y="89" class="box-copy">Tenant-isolated data access</text>
+    </g>
+
+    <g transform="translate(28 234)">
+      <rect width="514" height="122" rx="19" fill="#17152c" stroke="#7459d9" stroke-width="1.3"/>
+      <rect x="20" y="20" width="42" height="42" rx="12" fill="url(#violet)"/>
+      <path d="M31 32h20v14H31zM34 29h14" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <text x="78" y="41" class="box-title">Notification Service</text>
+      <text x="78" y="65" class="box-copy">Authenticate · validate · sanitize · persist · enqueue</text>
+      <rect x="20" y="84" width="129" height="24" rx="12" fill="#8b5cf6" opacity=".13"/>
+      <text x="34" y="100" class="step">1 · FAST API PATH</text>
+      <text x="166" y="101" class="box-copy">Request accepted before provider delivery</text>
+    </g>
+
+    <g transform="translate(564 234)">
+      <rect width="246" height="122" rx="19" class="inner"/>
+      <circle cx="28" cy="31" r="12" fill="#10b981" opacity=".14"/>
+      <path d="M22 31l4 4 8-9" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="50" y="36" class="box-title">Realtime Gateway</text>
+      <text x="20" y="72" class="box-copy">Authenticated Socket.IO rooms</text>
+      <text x="20" y="94" class="box-copy">Recipient + project scope</text>
+    </g>
+
+    <g transform="translate(28 382)">
+      <rect width="246" height="112" rx="18" class="inner"/>
+      <circle cx="28" cy="30" r="12" fill="#0ea5e9" opacity=".14"/>
+      <ellipse cx="28" cy="27" rx="8" ry="4" fill="none" stroke="#38bdf8" stroke-width="1.7"/>
+      <path d="M20 27v10c0 5 16 5 16 0V27" fill="none" stroke="#38bdf8" stroke-width="1.7"/>
+      <text x="50" y="35" class="box-title">PostgreSQL</text>
+      <text x="20" y="69" class="box-copy">Prisma persistence</text>
+      <text x="20" y="90" class="box-copy">History + delivery attempts</text>
+    </g>
+
+    <g transform="translate(296 382)">
+      <rect width="246" height="112" rx="18" class="inner"/>
+      <circle cx="28" cy="30" r="12" fill="#ef4444" opacity=".14"/>
+      <path d="M21 26l7-4 7 4-7 4zM21 32l7 4 7-4M21 38l7 4 7-4" fill="none" stroke="#f87171" stroke-width="1.7"/>
+      <text x="50" y="35" class="box-title">Redis + BullMQ</text>
+      <text x="20" y="69" class="box-copy">Asynchronous job queue</text>
+      <text x="20" y="90" class="box-copy">Provider work off the API path</text>
+    </g>
+
+    <g transform="translate(564 382)">
+      <rect width="246" height="112" rx="18" class="inner"/>
+      <circle cx="28" cy="30" r="12" fill="#f59e0b" opacity=".14"/>
+      <path d="M28 21v7l6 4M23 40h10" fill="none" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/>
+      <text x="50" y="35" class="box-title">Delivery Worker</text>
+      <text x="20" y="69" class="box-copy">Channel dispatch + outcomes</text>
+      <text x="20" y="90" class="box-copy">Per-attempt status tracking</text>
+    </g>
+
+    <g transform="translate(28 520)">
+      <rect width="782" height="64" rx="16" fill="#0b1720" stroke="#1f4b48"/>
+      <circle cx="28" cy="32" r="13" fill="#10b981" opacity=".16"/>
+      <path d="M28 22l8 4v6c0 6-4 10-8 12-4-2-8-6-8-12v-6z" fill="none" stroke="#34d399" stroke-width="1.8"/>
+      <text x="52" y="28" class="box-title">Isolation enforced throughout the request</text>
+      <text x="52" y="48" class="box-copy">Tenant scope · project scope · recipient tokens · authenticated realtime rooms</text>
+    </g>
+
+    <path d="M542 443H564" class="arrow-c"/>
+    <path d="M687 356V382" class="arrow-c"/>
+    <path d="M151 356V382" class="arrow-c"/>
+    <path d="M419 356V382" class="arrow-v"/>
+    <text x="442" y="373" class="step">2 · QUEUE</text>
+    <text x="600" y="373" class="step">3 · PROCESS</text>
+  </g>
+
+  <g transform="translate(1260 146)">
+    <text x="0" y="0" class="section">DELIVERY CHANNELS</text>
+
+    <g transform="translate(0 30)" filter="url(#shadow)">
+      <rect width="276" height="112" rx="18" class="panel"/>
+      <circle cx="34" cy="34" r="15" fill="#22d3ee" opacity=".14"/>
+      <path d="M27 29h14v10H27zM30 42h8" fill="none" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+      <text x="60" y="39" class="box-title">In-App</text>
+      <text x="24" y="73" class="box-copy">Socket.IO realtime events</text>
+      <text x="24" y="93" class="box-copy">Notification history fallback</text>
+    </g>
+
+    <g transform="translate(0 166)" filter="url(#shadow)">
+      <rect width="276" height="112" rx="18" class="panel"/>
+      <circle cx="34" cy="34" r="15" fill="#8b5cf6" opacity=".16"/>
+      <path d="M34 24c-6 0-9 5-9 10v6h18v-6c0-5-3-10-9-10zM31 44h6" fill="none" stroke="#a78bfa" stroke-width="1.9" stroke-linecap="round"/>
+      <text x="60" y="39" class="box-title">Web Push</text>
+      <text x="24" y="73" class="box-copy">VAPID + browser subscriptions</text>
+      <text x="24" y="93" class="box-copy">Per-device delivery attempts</text>
+    </g>
+
+    <g transform="translate(0 302)" filter="url(#shadow)">
+      <rect width="276" height="112" rx="18" class="panel"/>
+      <circle cx="34" cy="34" r="15" fill="#f59e0b" opacity=".14"/>
+      <path d="M25 28h18v13H25zM25 29l9 7 9-7" fill="none" stroke="#fbbf24" stroke-width="1.9" stroke-linejoin="round"/>
+      <text x="60" y="39" class="box-title">Email</text>
+      <text x="24" y="73" class="box-copy">Provider adapter interface</text>
+      <text x="24" y="93" class="box-copy">SMTP + console fallback</text>
+    </g>
+  </g>
+
+  <path d="M302 232H346" class="arrow-v"/>
+  <path d="M302 368H346" class="arrow-c"/>
+  <path d="M302 504H346" class="arrow-v"/>
+  <path d="M1198 338H1246V232H1260" class="arrow-c"/>
+  <path d="M1198 450H1246V368H1260" class="arrow-v"/>
+  <path d="M1198 586H1246V504H1260" class="arrow-v"/>
+
+  <g transform="translate(64 820)">
+    <rect width="1472" height="42" rx="14" fill="#111827" stroke="#273449"/>
+    <circle cx="24" cy="21" r="7" fill="#8b5cf6"/>
+    <text x="42" y="26" class="tiny">FAST PATH</text>
+    <text x="130" y="26" class="box-copy">authenticate → validate → persist → enqueue → respond</text>
+    <circle cx="560" cy="21" r="7" fill="#22d3ee"/>
+    <text x="578" y="26" class="tiny">BACKGROUND PATH</text>
+    <text x="720" y="26" class="box-copy">worker → channel provider → recipient → delivery record</text>
+    <text x="1260" y="26" class="tiny">3 CHANNELS · 1 PLATFORM</text>
+  </g>
+</svg>
