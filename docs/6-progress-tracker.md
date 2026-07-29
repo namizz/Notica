@@ -88,3 +88,35 @@
   * [x] Verify all migrations on a clean database and upgrade the local development database with no Prisma drift.
   * [x] Add focused browser-token and delivery-outcome tests.
 
+---
+
+## Checkpoint 7: Public SaaS Website & Developer Documentation (Current Goal)
+* **Goal**: Present Notica as a production-ready developer SaaS, make product education and documentation public, and reserve authentication for projects, API keys, delivery operations, and account security.
+* **Progress**:
+  * [x] Replace the root login redirect with a responsive public SaaS landing page.
+  * [x] Add shared public navigation and footer with clear Documentation, Get Started, and Sign In paths.
+  * [x] Add an interactive notification-delivery demo that explains the API, queue, channel, and recipient flow.
+  * [x] Publish developer documentation at `/docs` without requiring authentication.
+  * [x] Add documentation navigation, copyable code examples, security callouts, and responsive tables of contents.
+  * [x] Document the quickstart, core concepts, REST API, JavaScript SDK, Web Push, client tokens, and API-key security.
+  * [x] Keep `/dashboard/**` authenticated and limit it to projects, API keys, logs, console, sessions, and security controls.
+  * [x] Point the dashboard Documentation navigation item to the public documentation site.
+  * [x] Add page metadata and baseline SEO/accessibility support for public pages.
+  * [x] Replace hard-coded localhost links in user-facing integration examples with environment-driven production URLs.
+* **Next Goal**: Complete production configuration, deployment packaging, health checks, and release validation.
+
+---
+
+## Checkpoint 8: Production Deployment Readiness (Planned)
+* **Goal**: Make the web application, API, queue processing, database, Redis, email, Web Push, and authentication flows safe and repeatable to deploy.
+* **Progress**:
+  * [ ] Define production environment variables and provide safe example configuration.
+  * [ ] Remove hard-coded localhost OAuth callbacks, password-reset links, and frontend redirects.
+  * [ ] Configure explicit production CORS origins and API/WebSocket URLs.
+  * [ ] Require strong JWT, refresh-token, and client-token secrets in production.
+  * [ ] Configure production PostgreSQL, Redis, SMTP, and VAPID credentials.
+  * [ ] Add API health/readiness endpoints and deployment smoke checks.
+  * [ ] Add production build/container definitions for the web and API applications.
+  * [ ] Run Prisma migrations as part of the release process.
+  * [ ] Validate frontend build/lint, backend tests, queues, WebSockets, email, and Web Push in the deployed environment.
+
