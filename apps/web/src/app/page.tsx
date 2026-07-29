@@ -98,7 +98,7 @@ const channels = [
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen overflow-hidden bg-[#070b12] text-slate-100">
+    <div className="public-site min-h-screen overflow-hidden bg-[#070b12] text-slate-100">
       <PublicHeader />
 
       <main>
@@ -106,13 +106,13 @@ export default function HomePage() {
           <div className="absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[120px]" />
           <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[0.82fr_1.18fr] lg:py-28">
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-400/15 bg-violet-500/5 px-3 py-1.5 text-xs font-medium text-violet-200">
+              <div className="public-hero-badge mb-6 inline-flex items-center gap-2 rounded-full border border-violet-400/15 bg-violet-500/5 px-3 py-1.5 text-xs font-medium text-violet-200">
                 <Sparkles className="h-3.5 w-3.5" />
                 Notification service API for modern apps
               </div>
               <h1 className="max-w-3xl text-5xl font-semibold leading-[1.03] tracking-[-0.045em] text-white sm:text-6xl">
                 Notification infrastructure
-                <span className="bg-gradient-to-r from-violet-300 via-indigo-300 to-sky-300 bg-clip-text text-transparent"> for every application.</span>
+                <span className="public-gradient-text bg-gradient-to-r from-violet-300 via-indigo-300 to-sky-300 bg-clip-text text-transparent"> for every application.</span>
               </h1>
               <p className="mt-6 max-w-xl text-base leading-8 text-slate-400 sm:text-lg">
                 Connect your ecommerce store, learning platform, communication product, or any other application to
@@ -121,7 +121,7 @@ export default function HomePage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/register"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-violet-600/20 transition-colors hover:bg-violet-500"
+                  className="public-primary-cta inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-violet-600/20 transition-colors hover:bg-violet-500"
                 >
                   Start building free
                   <ArrowRight className="h-4 w-4" />
@@ -157,7 +157,7 @@ export default function HomePage() {
                 />
                 <div className="absolute inset-x-5 bottom-5 flex flex-wrap items-center justify-center gap-2">
                   {['Application events', 'Notica delivery hub', 'User notifications'].map((label, index) => (
-                    <span key={label} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#080c14]/90 px-3 py-1.5 text-[10px] font-medium text-slate-300 backdrop-blur">
+                    <span key={label} className="public-image-caption inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#080c14]/90 px-3 py-1.5 text-[10px] font-medium text-slate-300 backdrop-blur">
                       <span className={`h-1.5 w-1.5 rounded-full ${index === 0 ? 'bg-violet-400' : index === 1 ? 'bg-indigo-300' : 'bg-emerald-400'}`} />
                       {label}
                     </span>
@@ -270,7 +270,7 @@ export default function HomePage() {
         </section>
 
         <section id="security" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
-          <div className="overflow-hidden rounded-3xl border border-violet-400/15 bg-gradient-to-br from-violet-500/10 via-slate-950 to-sky-500/5 p-7 sm:p-10">
+          <div className="public-security-panel overflow-hidden rounded-3xl border border-violet-400/15 bg-gradient-to-br from-violet-500/10 via-slate-950 to-sky-500/5 p-7 sm:p-10">
             <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-400/20 bg-violet-500/10 text-violet-200">
@@ -309,7 +309,7 @@ export default function HomePage() {
               Create your first project, keep the API key on your server, and deliver a real notification in minutes.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/register" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-violet-100">
+              <Link href="/register" className="public-white-cta inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-violet-100">
                 Create an account
                 <ArrowRight className="h-4 w-4" />
               </Link>

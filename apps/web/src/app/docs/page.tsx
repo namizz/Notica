@@ -6,6 +6,7 @@ import {
   BookOpen,
   Braces,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   CircleAlert,
   Cpu,
@@ -18,6 +19,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { CodeBlock } from '@/components/public/CodeBlock';
+import { DocsSectionController } from '@/components/public/DocsSectionController';
 import { PublicFooter, PublicHeader } from '@/components/public/PublicShell';
 
 export const metadata: Metadata = {
@@ -98,6 +100,48 @@ function SectionHeading({
   );
 }
 
+function DocsPager({
+  previous,
+  next,
+}: {
+  previous?: { href: string; label: string };
+  next?: { href: string; label: string };
+}) {
+  return (
+    <nav className="mt-12 grid gap-3 border-t border-white/7 pt-6 sm:grid-cols-2" aria-label="Documentation pagination">
+      {previous ? (
+        <a
+          href={previous.href}
+          data-doc-section-link={previous.href.slice(1)}
+          className="public-docs-pager group flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-4 transition-colors hover:border-violet-400/25 hover:bg-violet-500/5"
+        >
+          <ChevronLeft className="h-4 w-4 text-slate-500 group-hover:text-violet-300" />
+          <span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Previous</span>
+            <span className="mt-1 block text-sm font-semibold text-white">{previous.label}</span>
+          </span>
+        </a>
+      ) : (
+        <span className="hidden sm:block" />
+      )}
+
+      {next && (
+        <a
+          href={next.href}
+          data-doc-section-link={next.href.slice(1)}
+          className="public-docs-pager group flex items-center justify-between gap-3 rounded-xl border border-violet-400/20 bg-violet-500/5 p-4 text-right transition-colors hover:border-violet-400/35 hover:bg-violet-500/10"
+        >
+          <span className="ml-auto">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-300">Next</span>
+            <span className="mt-1 block text-sm font-semibold text-white">{next.label}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-violet-300" />
+        </a>
+      )}
+    </nav>
+  );
+}
+
 export default function DocumentationPage() {
   const identifyCode = `curl -X POST ${apiUrl}/recipients/identify \\
   -H "Content-Type: application/json" \\
@@ -138,7 +182,8 @@ Notica.onNotification((notification) => {
 });`;
 
   return (
-    <div className="min-h-screen bg-[#070b12] text-slate-100">
+    <div className="public-site min-h-screen bg-[#070b12] text-slate-100">
+      <DocsSectionController />
       <PublicHeader />
 
       <div className="border-b border-white/5 bg-white/[0.015]">
@@ -172,17 +217,18 @@ Notica.onNotification((notification) => {
       </div>
 
       <nav
-        className="sticky top-16 z-40 flex gap-2 overflow-x-auto border-b border-white/5 bg-[#070b12]/95 px-5 py-3 backdrop-blur lg:hidden"
+        className="public-docs-mobile-nav sticky top-16 z-40 flex gap-2 overflow-x-auto border-b border-white/5 bg-[#070b12]/95 px-5 py-3 backdrop-blur lg:hidden"
         aria-label="Documentation sections"
       >
         {navGroups.flatMap((group) => group.links).map((link) => (
-          <Link
+          <a
             key={link.href}
             href={link.href}
-            className="shrink-0 rounded-full border border-white/7 bg-white/[0.025] px-3 py-1.5 text-xs text-slate-400 hover:text-white"
+            data-doc-section-link={link.href.slice(1)}
+            className="public-docs-nav-link shrink-0 rounded-full border border-white/7 bg-white/[0.025] px-3 py-1.5 text-xs text-slate-400 hover:text-white"
           >
             {link.label}
-          </Link>
+          </a>
         ))}
       </nav>
 
@@ -194,13 +240,14 @@ Notica.onNotification((notification) => {
                 <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">{group.title}</p>
                 <div className="space-y-0.5">
                   {group.links.map((link) => (
-                    <Link
+                    <a
                       key={link.href}
                       href={link.href}
-                      className="block rounded-lg px-2 py-2 text-sm text-slate-500 transition-colors hover:bg-white/[0.03] hover:text-white"
+                      data-doc-section-link={link.href.slice(1)}
+                      className="public-docs-nav-link block rounded-lg border border-transparent px-2 py-2 text-sm text-slate-500 transition-colors hover:bg-white/[0.03] hover:text-white"
                     >
                       {link.label}
-                    </Link>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -208,7 +255,7 @@ Notica.onNotification((notification) => {
           </nav>
         </aside>
 
-        <main className="min-w-0">
+        <main className="docs-section-flow min-w-0">
           <section id="overview" className="scroll-mt-24 border-b border-white/7 pb-14">
             <SectionHeading
               eyebrow="Overview"
@@ -231,6 +278,7 @@ Notica.onNotification((notification) => {
                 );
               })}
             </div>
+            <DocsPager next={{ href: '#quickstart', label: 'Quickstart' }} />
           </section>
 
           <section id="quickstart" className="scroll-mt-24 border-b border-white/7 py-14">
@@ -276,6 +324,10 @@ Notica.onNotification((notification) => {
                 </div>
               </div>
             </div>
+            <DocsPager
+              previous={{ href: '#overview', label: 'Overview' }}
+              next={{ href: '#concepts', label: 'Core concepts' }}
+            />
           </section>
 
           <section id="concepts" className="scroll-mt-24 border-b border-white/7 py-14">
@@ -303,6 +355,10 @@ Notica.onNotification((notification) => {
                 );
               })}
             </div>
+            <DocsPager
+              previous={{ href: '#quickstart', label: 'Quickstart' }}
+              next={{ href: '#api-reference', label: 'API reference' }}
+            />
           </section>
 
           <section id="api-reference" className="scroll-mt-24 border-b border-white/7 py-14">
@@ -327,6 +383,10 @@ Notica.onNotification((notification) => {
                 {apiUrl}/api-docs
               </a>.
             </p>
+            <DocsPager
+              previous={{ href: '#concepts', label: 'Core concepts' }}
+              next={{ href: '#client-sdk', label: 'JavaScript SDK' }}
+            />
           </section>
 
           <section id="client-sdk" className="scroll-mt-24 border-b border-white/7 py-14">
@@ -345,6 +405,10 @@ Notica.onNotification((notification) => {
             </div>
             <CodeBlock code={tokenCode} label="Server: issue client token" />
             <CodeBlock code={sdkCode} label="Browser: initialize SDK" className="mt-4" />
+            <DocsPager
+              previous={{ href: '#api-reference', label: 'API reference' }}
+              next={{ href: '#web-push', label: 'Web Push' }}
+            />
           </section>
 
           <section id="web-push" className="scroll-mt-24 border-b border-white/7 py-14">
@@ -377,6 +441,10 @@ if (!registered) {
                 );
               })}
             </div>
+            <DocsPager
+              previous={{ href: '#client-sdk', label: 'JavaScript SDK' }}
+              next={{ href: '#security', label: 'Security' }}
+            />
           </section>
 
           <section id="security" className="scroll-mt-24 border-b border-white/7 py-14">
@@ -398,6 +466,10 @@ if (!registered) {
                 </div>
               ))}
             </div>
+            <DocsPager
+              previous={{ href: '#web-push', label: 'Web Push' }}
+              next={{ href: '#errors', label: 'Errors and statuses' }}
+            />
           </section>
 
           <section id="errors" className="scroll-mt-24 pt-14">
@@ -428,6 +500,7 @@ if (!registered) {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
+            <DocsPager previous={{ href: '#security', label: 'Security' }} />
           </section>
         </main>
       </div>

@@ -21,7 +21,7 @@ export function CodeBlock({
   };
 
   return (
-    <div className={`overflow-hidden rounded-2xl border border-white/8 bg-[#080c14] ${className}`}>
+    <div className={`public-code-block overflow-hidden rounded-2xl border border-white/8 bg-[#080c14] ${className}`}>
       <div className="flex items-center justify-between border-b border-white/6 px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">{label}</span>
         <button
