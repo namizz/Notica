@@ -15,14 +15,14 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
       case 'nodejs':
         return (
           <>
-            <span className="text-slate-500">// Install Notica backend package: npm install @notica/node</span>
+            <span className="text-slate-500">{'// Install Notica backend package: npm install @notica/node'}</span>
             <br />
             <span className="text-violet-400">const</span> Notica = require(<span className="text-emerald-400">&apos;@notica/node&apos;</span>);
             <br />
             <span className="text-violet-400">const</span> notica = Notica.init(<span className="text-emerald-400">&apos;{apiKey}&apos;</span>);
             <br />
             <br />
-            <span className="text-slate-500">// Dispatch a real-time event to a recipient user</span>
+            <span className="text-slate-500">{'// Dispatch a real-time event to a recipient user'}</span>
             <br />
             <span className="text-violet-400">await</span> notica.notify(<span className="text-emerald-400">&apos;user_123&apos;</span>, &#123;
             <br />
@@ -39,7 +39,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
       case 'nextjs':
         return (
           <>
-            <span className="text-slate-500">// app/api/notify/route.ts (Next.js App Router API Route)</span>
+            <span className="text-slate-500">{'// app/api/notify/route.ts (Next.js App Router API Route)'}</span>
             <br />
             <span className="text-violet-400">import</span> &#123; NextResponse &#125; <span className="text-violet-400 font-semibold">from</span> <span className="text-emerald-400">&apos;next/server&apos;</span>;
             <br />
@@ -85,7 +85,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
       case 'browser':
         return (
           <>
-            <span className="text-slate-500">&lt;!-- Load Client SDK inside website HTML --&gt;</span>
+            <span className="text-slate-500">{'<!-- Load Client SDK inside website HTML -->'}</span>
             <br />
             <span className="text-slate-400">&lt;</span><span className="text-violet-400">script</span> <span className="text-amber-400">src</span>=<span className="text-emerald-400">&quot;https://cdn.socket.io/4.7.5/socket.io.min.js&quot;</span><span className="text-slate-400">&gt;&lt;/</span><span className="text-violet-400">script</span><span className="text-slate-400">&gt;</span>
             <br />
@@ -94,7 +94,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             <br />
             <span className="text-slate-400">&lt;</span><span className="text-violet-400">script</span><span className="text-slate-400">&gt;</span>
             <br />
-            &nbsp;&nbsp;<span className="text-slate-500">// Initialize client</span>
+            &nbsp;&nbsp;<span className="text-slate-500">{'// Initialize client'}</span>
             <br />
             &nbsp;&nbsp;Notica.init(&#123;
             <br />
@@ -107,12 +107,12 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             &nbsp;&nbsp;&#125;);
             <br />
             <br />
-            &nbsp;&nbsp;<span className="text-slate-500">// The token already identifies and scopes this recipient</span>
+            &nbsp;&nbsp;<span className="text-slate-500">{'// The token already identifies and scopes this recipient'}</span>
             <br />
             &nbsp;&nbsp;Notica.identify(<span className="text-emerald-400">&apos;customer_789&apos;</span>);
             <br />
             <br />
-            &nbsp;&nbsp;<span className="text-slate-500">// Receive instant updates over WebSocket</span>
+            &nbsp;&nbsp;<span className="text-slate-500">{'// Receive instant updates over WebSocket'}</span>
             <br />
             &nbsp;&nbsp;Notica.onNotification((data) =&gt; &#123;
             <br />
@@ -127,7 +127,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
       case 'sw':
         return (
           <>
-            <span className="text-slate-500">// public/sw.js (Service Worker for background Web Push)</span>
+            <span className="text-slate-500">{'// public/sw.js (Service Worker for background Web Push)'}</span>
             <br />
             self.addEventListener(<span className="text-emerald-400">&apos;push&apos;</span>, (event) =&gt; &#123;
             <br />
@@ -148,7 +148,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             &#125;);
             <br />
             <br />
-            <span className="text-slate-500">// Register service worker and enable Web Push from frontend</span>
+            <span className="text-slate-500">{'// Register service worker and enable Web Push from frontend'}</span>
             <br />
             <span className="text-violet-400">await</span> Notica.registerPush(<span className="text-emerald-400">&apos;/sw.js&apos;</span>);
           </>

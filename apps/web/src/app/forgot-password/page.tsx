@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { ShieldCheck, Mail, ArrowRight, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const { forgotPassword } = useAuth();
-  const router = useRouter();
 
   // Inputs
   const [email, setEmail] = useState('');
@@ -39,8 +37,12 @@ export default function ForgotPasswordPage() {
       if (res.token) {
         setTestToken(res.token);
       }
-    } catch (err: any) {
-      setError(err.message || 'Request failed. Please try again.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Request failed. Please try again.',
+      );
     } finally {
       setLoading(false);
     }

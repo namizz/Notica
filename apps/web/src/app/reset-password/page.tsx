@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -14,20 +14,15 @@ function ResetPasswordPageContent() {
   // Inputs
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [token, setToken] = useState<string | null>(null);
+  const token = searchParams.get('token');
 
   // States
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    token
+      ? null
+      : 'Invalid reset link: Missing token. Please request a new password reset.',
+  );
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const urlToken = searchParams.get('token');
-    if (!urlToken) {
-      setError('Invalid reset link: Missing token. Please request a new password reset.');
-    } else {
-      setToken(urlToken);
-    }
-  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,8 +52,12 @@ function ResetPasswordPageContent() {
     try {
       await resetPassword(token, newPassword);
       router.push('/login?resetSuccess=true');
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset password. The link may have expired.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to reset password. The link may have expired.',
+      );
     } finally {
       setLoading(false);
     }

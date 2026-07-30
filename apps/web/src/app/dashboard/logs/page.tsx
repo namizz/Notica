@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { 
   Search, 
@@ -14,7 +14,6 @@ import {
   Clock,
   Terminal,
   Send,
-  Smartphone,
   Laptop
 } from 'lucide-react';
 
@@ -92,7 +91,7 @@ export default function DeliveryLogsPage() {
     });
   }, []);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     if (!selectedProjectId) return;
     setLoading(true);
     setError(null);
@@ -115,16 +114,18 @@ export default function DeliveryLogsPage() {
       } else {
         setError('Failed to fetch delivery logs.');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred while loading logs.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [channel, debouncedSearch, page, selectedProjectId, status]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [page, status, channel, debouncedSearch, selectedProjectId]);
+    // Fetching is an external synchronization; state updates occur from the request lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchLogs();
+  }, [fetchLogs]);
 
   const getStatusBadge = (logStatus: string) => {
     switch (logStatus) {
@@ -468,7 +469,7 @@ export default function DeliveryLogsPage() {
                   </div>
                 ) : (
                   <div className="relative border-l-2 border-slate-900 ml-3.5 space-y-6">
-                    {selectedLog.deliveries.map((delivery, index) => (
+                    {selectedLog.deliveries.map((delivery) => (
                       <div key={delivery.id} className="relative pl-6">
                         {/* Dot */}
                         <div className="absolute -left-[9px] top-1 bg-slate-950 p-0.5 rounded-full">
