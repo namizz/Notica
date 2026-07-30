@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
+import { NoticaMark } from '@/components/public/PublicShell';
 import { Layers, Monitor, ShieldCheck, LogOut, User, Bell, Terminal, BookOpen, Activity } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Projects & Keys', href: '/dashboard', icon: Layers },
     { name: 'Real-time Console', href: '/dashboard/console', icon: Activity },
     { name: 'Delivery Logs', href: '/dashboard/logs', icon: Terminal },
-    { name: 'Documentation', href: '/dashboard/docs', icon: BookOpen },
+    { name: 'Documentation', href: '/docs', icon: BookOpen },
     { name: 'Active Sessions', href: '/dashboard/sessions', icon: Monitor },
     { name: '2FA Security', href: '/dashboard/security', icon: ShieldCheck },
   ];
@@ -26,9 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col bg-slate-900/40 border-r border-slate-900 backdrop-blur-xl shrink-0">
           <div className="flex h-16 items-center px-6 border-b border-slate-900 gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 shadow-md shadow-violet-500/10">
-              <span className="font-bold text-white text-sm">N</span>
-            </div>
+            <NoticaMark className="h-8 w-8" />
             <span className="font-bold text-lg tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
               NOTICA
             </span>
@@ -83,8 +82,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <header className="h-16 border-b border-slate-900 bg-slate-950/20 backdrop-blur-xl flex items-center justify-between px-6 md:px-8 shrink-0">
             <div className="flex items-center gap-4">
               {/* Mobile logo (visible on small screens) */}
-              <div className="flex md:hidden h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500">
-                <span className="font-bold text-white text-xs">N</span>
+              <div className="md:hidden">
+                <NoticaMark className="h-8 w-8" />
               </div>
               <h1 className="text-sm font-semibold text-slate-400 uppercase tracking-widest md:hidden">Notica</h1>
             </div>
