@@ -30,6 +30,9 @@ export class SmtpProvider implements EmailProvider, OnModuleInit {
         port: port ? parseInt(port, 10) : 587,
         secure: port === '465',
         auth: user && pass ? { user, pass } : undefined,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 15_000,
       });
       this.logger.log(`SMTP provider initialized for host: ${host}`);
     } catch (error: unknown) {
