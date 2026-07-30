@@ -32,10 +32,6 @@ async function probeApi() {
   }
 }
 
-export function isRenderWakeupEnabled() {
-  return RENDER_WAKEUP_ENABLED;
-}
-
 export async function wakeApi() {
   if (!RENDER_WAKEUP_ENABLED) {
     return;
@@ -65,9 +61,7 @@ export async function wakeApi() {
       }
     }
 
-    throw new Error(
-      'The server is taking longer than expected to wake up. Please try again.',
-    );
+    throw new Error('This is taking longer than expected. Please try again.');
   })();
 
   try {
