@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -18,19 +18,17 @@ function LoginPageContent() {
 
   // States
   const [mfaRequired, setMfaRequired] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get('expired')
+      ? 'Your session has expired. Please log in again.'
+      : null,
+  );
+  const [successMsg, setSuccessMsg] = useState<string | null>(() =>
+    searchParams.get('resetSuccess')
+      ? 'Password reset successfully. Please log in.'
+      : null,
+  );
   const [loading, setLoading] = useState(false);
-
-  // Check URL params
-  useEffect(() => {
-    if (searchParams.get('expired')) {
-      setError('Your session has expired. Please log in again.');
-    }
-    if (searchParams.get('resetSuccess')) {
-      setSuccessMsg('Password reset successfully. Please log in.');
-    }
-  }, [searchParams]);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +48,10 @@ function LoginPageContent() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err: any) {
-      setError(err.message || 'Invalid email or password.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Invalid email or password.',
+      );
     } finally {
       setLoading(false);
     }
@@ -70,15 +70,17 @@ function LoginPageContent() {
     try {
       await mfaAuthenticate(email, mfaCode);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Invalid authentication code.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Invalid authentication code.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const triggerOAuth = (provider: 'google' | 'github') => {
-    window.location.href = `http://localhost:8000/auth/${provider}`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/${provider}`;
   };
 
   return (

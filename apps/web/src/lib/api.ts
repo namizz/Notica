@@ -22,7 +22,7 @@ export function getAccessToken() {
 }
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
-  body?: any;
+  body?: unknown;
   skipAuth?: boolean;
 }
 
@@ -34,10 +34,14 @@ export async function request(path: string, options: RequestOptions = {}) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  let finalBody = options.body;
-  if (finalBody && typeof finalBody === 'object' && !(finalBody instanceof FormData)) {
+  let finalBody: BodyInit | undefined;
+  if (options.body instanceof FormData) {
+    finalBody = options.body;
+  } else if (typeof options.body === 'string') {
+    finalBody = options.body;
+  } else if (options.body !== undefined) {
     headers.set('Content-Type', 'application/json');
-    finalBody = JSON.stringify(finalBody);
+    finalBody = JSON.stringify(options.body);
   }
 
   const response = await fetch(url, {
@@ -114,8 +118,8 @@ export async function request(path: string, options: RequestOptions = {}) {
 
 export const api = {
   get: (path: string, options?: RequestOptions) => request(path, { ...options, method: 'GET' }),
-  post: (path: string, body?: any, options?: RequestOptions) => request(path, { ...options, method: 'POST', body }),
-  put: (path: string, body?: any, options?: RequestOptions) => request(path, { ...options, method: 'PUT', body }),
-  patch: (path: string, body?: any, options?: RequestOptions) => request(path, { ...options, method: 'PATCH', body }),
+  post: (path: string, body?: unknown, options?: RequestOptions) => request(path, { ...options, method: 'POST', body }),
+  put: (path: string, body?: unknown, options?: RequestOptions) => request(path, { ...options, method: 'PUT', body }),
+  patch: (path: string, body?: unknown, options?: RequestOptions) => request(path, { ...options, method: 'PATCH', body }),
   delete: (path: string, options?: RequestOptions) => request(path, { ...options, method: 'DELETE' }),
 };

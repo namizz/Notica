@@ -33,7 +33,7 @@ export default function SecurityPage() {
         const err = await res.json();
         setError(err.message || 'Failed to initialize 2FA setup.');
       }
-    } catch (e) {
+    } catch {
       setError('An error occurred during 2FA initialization.');
     } finally {
       setLoading(false);
@@ -64,7 +64,7 @@ export default function SecurityPage() {
         const err = await res.json();
         setError(err.message || 'Invalid verification code. Please try again.');
       }
-    } catch (e) {
+    } catch {
       setError('Error enabling two-factor authentication.');
     } finally {
       setLoading(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api, getAccessToken } from '@/lib/api';
 import { Monitor, Smartphone, Globe, ShieldAlert, LogOut, CheckCircle, Clock } from 'lucide-react';
 
@@ -12,28 +12,34 @@ interface UserSession {
   expiresAt: string;
 }
 
+function getCurrentSessionId() {
+  const token = getAccessToken();
+  if (!token) return null;
+
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedPayload = JSON.parse(atob(payloadBase64)) as {
+      sid?: unknown;
+    };
+    return typeof decodedPayload.sid === 'string' ? decodedPayload.sid : null;
+  } catch (error: unknown) {
+    console.error(
+      'Failed to decode active token for session tracking',
+      error,
+    );
+    return null;
+  }
+}
+
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<UserSession[]>([]);
-  const [currentSid, setCurrentSid] = useState<string | null>(null);
+  const currentSid = getCurrentSessionId();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingOthers, setRevokingOthers] = useState(false);
 
-  // Decode JWT on the client to extract session ID (sid)
-  const extractCurrentSessionId = () => {
-    const token = getAccessToken();
-    if (!token) return;
-    try {
-      const payloadBase64 = token.split('.')[1];
-      const decodedPayload = JSON.parse(atob(payloadBase64));
-      setCurrentSid(decodedPayload.sid || null);
-    } catch (e) {
-      console.error('Failed to decode active token for session tracking', e);
-    }
-  };
-
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const res = await api.get('/auth/sessions');
       if (res.ok) {
@@ -42,28 +48,29 @@ export default function SessionsPage() {
       } else {
         setError('Failed to retrieve active sessions.');
       }
-    } catch (e) {
+    } catch {
       setError('An error occurred while loading session details.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    extractCurrentSessionId();
-    fetchSessions();
-  }, []);
+    // Fetching is an external synchronization; state updates occur from the request lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchSessions();
+  }, [fetchSessions]);
 
   const handleRevokeSession = async (id: string) => {
     setRevokingId(id);
     try {
       const res = await api.delete(`/auth/sessions/${id}`);
       if (res.ok) {
-        fetchSessions();
+        void fetchSessions();
       } else {
         alert('Failed to revoke session.');
       }
-    } catch (e) {
+    } catch {
       alert('Error revoking session.');
     } finally {
       setRevokingId(null);
@@ -77,11 +84,11 @@ export default function SessionsPage() {
     try {
       const res = await api.delete('/auth/sessions');
       if (res.ok) {
-        fetchSessions();
+        void fetchSessions();
       } else {
         alert('Failed to revoke other sessions.');
       }
-    } catch (e) {
+    } catch {
       alert('Error revoking sessions.');
     } finally {
       setRevokingOthers(false);
