@@ -345,9 +345,13 @@ export class AuthService {
       },
     });
 
+    const frontendUrl = (
+      process.env.FRONTEND_URL || 'http://localhost:3000'
+    ).replace(/\/+$/, '');
+
     // Log the link to the console for development testing
     console.log(
-      `\n=== PASSWORD RESET LINK ===\nhttp://localhost:3000/reset-password?token=${token}\n===========================\n`,
+      `\n=== PASSWORD RESET LINK ===\n${frontendUrl}/reset-password?token=${token}\n===========================\n`,
     );
 
     return {

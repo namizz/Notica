@@ -4,8 +4,10 @@ import { AppModule } from './app.module';
 import * as express from 'express';
 import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
+import { validateProductionEnvironment } from './config/environment';
 
 async function bootstrap() {
+  validateProductionEnvironment();
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(
@@ -62,7 +64,7 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT ?? 8000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(`\n====================================================`);
   console.log(`  Notica Services Started Successfully!`);

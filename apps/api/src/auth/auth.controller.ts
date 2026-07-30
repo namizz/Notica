@@ -34,6 +34,13 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private getFrontendUrl() {
+    return (process.env.FRONTEND_URL || 'http://localhost:3000').replace(
+      /\/+$/,
+      '',
+    );
+  }
+
   @Post('register')
   @ApiOperation({
     summary: 'Register a new tenant organization and default project',
@@ -244,7 +251,7 @@ export class AuthController {
       isTwoFactorEnabled: result.user.isTwoFactorEnabled.toString(),
       authProvider: result.user.authProvider,
     }).toString();
-    return res.redirect(`http://localhost:3000/auth/callback?${query}`);
+    return res.redirect(`${this.getFrontendUrl()}/auth/callback?${query}`);
   }
 
   @Get('github')
@@ -279,6 +286,6 @@ export class AuthController {
       isTwoFactorEnabled: result.user.isTwoFactorEnabled.toString(),
       authProvider: result.user.authProvider,
     }).toString();
-    return res.redirect(`http://localhost:3000/auth/callback?${query}`);
+    return res.redirect(`${this.getFrontendUrl()}/auth/callback?${query}`);
   }
 }
