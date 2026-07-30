@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { isRenderWakeupEnabled, wakeApi } from '@/lib/api-wakeup';
+import { wakeApi } from '@/lib/api-wakeup';
 import { ShieldCheck, Mail, Lock, Building2, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -19,29 +19,12 @@ export default function RegisterPage() {
   // States
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [serverWaking, setServerWaking] = useState(
-    isRenderWakeupEnabled,
-  );
 
   useEffect(() => {
-    if (!isRenderWakeupEnabled()) {
-      return;
-    }
-
-    let active = true;
     void wakeApi()
       .catch(() => {
         // The submit action will retry and show an error if wake-up still fails.
-      })
-      .finally(() => {
-        if (active) {
-          setServerWaking(false);
-        }
       });
-
-    return () => {
-      active = false;
-    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,9 +43,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      setServerWaking(true);
       await wakeApi();
-      setServerWaking(false);
       const result = await register(email, password, companyName);
       sessionStorage.setItem('notica:new-api-key', JSON.stringify({
         projectId: result.project.id,
@@ -77,7 +58,6 @@ export default function RegisterPage() {
           : 'Registration failed. Please try again.',
       );
     } finally {
-      setServerWaking(false);
       setLoading(false);
     }
   };
@@ -108,12 +88,6 @@ export default function RegisterPage() {
             <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-200 text-sm flex items-start gap-3">
               <AlertCircle className="h-5 w-5 shrink-0 text-rose-400" />
               <span>{error}</span>
-            </div>
-          )}
-
-          {serverWaking && (
-            <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-              The server is waking up. This can take about a minute on the free Render plan.
             </div>
           )}
 
@@ -181,7 +155,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="w-full py-3 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl text-sm font-semibold text-white transition-all duration-200 transform hover:-translate-y-[1px] active:translate-y-0 shadow-lg shadow-violet-600/20 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 mt-6"
             >
-              {serverWaking ? 'Waking server...' : loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Creating account...' : 'Create Account'}
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>

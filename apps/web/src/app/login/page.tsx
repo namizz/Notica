@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { isRenderWakeupEnabled, wakeApi } from '@/lib/api-wakeup';
+import { wakeApi } from '@/lib/api-wakeup';
 import { ShieldCheck, Mail, Lock, Key, ArrowRight, AlertCircle } from 'lucide-react';
 
 function LoginPageContent() {
@@ -30,29 +30,12 @@ function LoginPageContent() {
       : null,
   );
   const [loading, setLoading] = useState(false);
-  const [serverWaking, setServerWaking] = useState(
-    isRenderWakeupEnabled,
-  );
 
   useEffect(() => {
-    if (!isRenderWakeupEnabled()) {
-      return;
-    }
-
-    let active = true;
     void wakeApi()
       .catch(() => {
         // The submit action will retry and show an error if wake-up still fails.
-      })
-      .finally(() => {
-        if (active) {
-          setServerWaking(false);
-        }
       });
-
-    return () => {
-      active = false;
-    };
   }, []);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -67,9 +50,7 @@ function LoginPageContent() {
 
     setLoading(true);
     try {
-      setServerWaking(true);
       await wakeApi();
-      setServerWaking(false);
       const res = await login(email, password);
       if (res.mfaRequired) {
         setMfaRequired(true);
@@ -81,7 +62,6 @@ function LoginPageContent() {
         err instanceof Error ? err.message : 'Invalid email or password.',
       );
     } finally {
-      setServerWaking(false);
       setLoading(false);
     }
   };
@@ -111,7 +91,6 @@ function LoginPageContent() {
   const triggerOAuth = async (provider: 'google' | 'github') => {
     setError(null);
     setLoading(true);
-    setServerWaking(true);
 
     try {
       await wakeApi();
@@ -120,10 +99,9 @@ function LoginPageContent() {
       setError(
         err instanceof Error
           ? err.message
-          : 'The server could not be reached. Please try again.',
+          : 'Unable to continue. Please try again.',
       );
       setLoading(false);
-      setServerWaking(false);
     }
   };
 
@@ -162,12 +140,6 @@ function LoginPageContent() {
             <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-sm flex items-start gap-3">
               <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
               <span>{successMsg}</span>
-            </div>
-          )}
-
-          {serverWaking && (
-            <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-              The server is waking up. This can take about a minute on the free Render plan.
             </div>
           )}
 
@@ -225,7 +197,7 @@ function LoginPageContent() {
                   disabled={loading}
                   className="w-full py-3 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl text-sm font-semibold text-white transition-all duration-200 transform hover:-translate-y-[1px] active:translate-y-0 shadow-lg shadow-violet-600/20 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 mt-6 animate-pulse-glow cursor-pointer"
                 >
-                  {serverWaking ? 'Waking server...' : loading ? 'Signing in...' : 'Sign In'}
+                  {loading ? 'Signing in...' : 'Sign In'}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </form>
