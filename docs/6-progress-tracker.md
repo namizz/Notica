@@ -107,16 +107,24 @@
 
 ---
 
-## Checkpoint 8: Production Deployment Readiness (Planned)
+## Checkpoint 8: Production Deployment Readiness (Current Goal)
 * **Goal**: Make the web application, API, queue processing, database, Redis, email, Web Push, and authentication flows safe and repeatable to deploy.
 * **Progress**:
-  * [ ] Define production environment variables and provide safe example configuration.
-  * [ ] Remove hard-coded localhost OAuth callbacks, password-reset links, and frontend redirects.
-  * [ ] Configure explicit production CORS origins and API/WebSocket URLs.
-  * [ ] Require strong JWT, refresh-token, and client-token secrets in production.
-  * [ ] Configure production PostgreSQL, Redis, SMTP, and VAPID credentials.
-  * [ ] Add API health/readiness endpoints and deployment smoke checks.
-  * [ ] Add production build/container definitions for the web and API applications.
-  * [ ] Run Prisma migrations as part of the release process.
-  * [ ] Validate frontend build/lint, backend tests, queues, WebSockets, email, and Web Push in the deployed environment.
+  * [x] Define the production environment contract and provide safe API and frontend example configuration.
+  * [x] Remove hard-coded localhost OAuth callbacks, password-reset links, and frontend redirects.
+  * [x] Configure explicit production CORS origins and API/WebSocket URLs.
+  * [x] Route Google and GitHub OAuth initiation and post-login callbacks through environment-driven production URLs.
+  * [x] Require unique JWT, refresh-token, and client-token secrets of at least 32 characters in production.
+  * [x] Configure secure PostgreSQL, Redis, OAuth, SMTP, and VAPID credential injection through Render.
+  * [x] Support authenticated/TLS Redis URLs in addition to local host/port configuration.
+  * [x] Add API liveness/readiness endpoints that verify PostgreSQL and Redis, plus release smoke-check documentation.
+  * [x] Add a Render Blueprint with repeatable web, API, PostgreSQL, Key Value, migration, build, start, and health-check configuration.
+  * [x] Run Prisma migrations as part of the Render release process.
+  * [x] Add bounded SMTP connection timeouts so blocked providers fail instead of remaining in processing.
+  * [x] Validate production builds for the Next.js frontend and NestJS API.
+  * [x] Pass all backend unit tests (8 suites, 27 tests).
+  * [x] Smoke-check the deployed API documentation and JavaScript SDK endpoints.
+  * [x] Resolve the frontend lint baseline with zero remaining errors or warnings.
+  * [x] Enforce API tests, frontend lint, and production builds in CI with a pinned Node/pnpm toolchain.
+  * [ ] Execute the documented authenticated queue, WebSocket, email, and Web Push smoke checks after deploying this release.
 
