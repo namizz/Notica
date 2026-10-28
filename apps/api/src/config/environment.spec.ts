@@ -1,5 +1,7 @@
 import {
+  appRole,
   redisConnectionOptions,
+  runsDeliveryWorker,
   validateProductionEnvironment,
 } from './environment';
 
@@ -16,12 +18,10 @@ function productionEnvironment(): NodeJS.ProcessEnv {
       'client-secret-that-is-longer-than-thirty-two-characters',
     GOOGLE_CLIENT_ID: 'google-client-id',
     GOOGLE_CLIENT_SECRET: 'google-client-secret',
-    GOOGLE_CALLBACK_URL:
-      'https://api.notica.example.com/auth/google/callback',
+    GOOGLE_CALLBACK_URL: 'https://api.notica.example.com/auth/google/callback',
     GITHUB_CLIENT_ID: 'github-client-id',
     GITHUB_CLIENT_SECRET: 'github-client-secret',
-    GITHUB_CALLBACK_URL:
-      'https://api.notica.example.com/auth/github/callback',
+    GITHUB_CALLBACK_URL: 'https://api.notica.example.com/auth/github/callback',
     VAPID_PUBLIC_KEY: 'public-vapid-key',
     VAPID_PRIVATE_KEY: 'private-vapid-key',
     VAPID_SUBJECT: 'mailto:ops@notica.example.com',
@@ -74,6 +74,50 @@ describe('production environment validation', () => {
     expect(() => validateProductionEnvironment(env)).toThrow(
       'SMTP configuration is incomplete',
     );
+  });
+
+  it('accepts each supported deployment role', () => {
+    for (const role of ['all', 'api', 'worker']) {
+      const env = productionEnvironment();
+      env.APP_ROLE = role;
+
+      expect(() => validateProductionEnvironment(env)).not.toThrow();
+    }
+  });
+
+  it('rejects a mistyped deployment role before boot', () => {
+    const env = productionEnvironment();
+    env.APP_ROLE = 'api-server';
+
+    expect(() => validateProductionEnvironment(env)).toThrow(
+      'APP_ROLE must be one of all, api, worker',
+    );
+  });
+});
+
+describe('deployment role', () => {
+  it('defaults to the combined role when unset', () => {
+    expect(appRole({})).toBe('all');
+    expect(appRole({ APP_ROLE: '' })).toBe('all');
+    expect(appRole({ APP_ROLE: '   ' })).toBe('all');
+  });
+
+  it('normalises case and surrounding whitespace', () => {
+    expect(appRole({ APP_ROLE: ' Worker ' })).toBe('worker');
+    expect(appRole({ APP_ROLE: 'API' })).toBe('api');
+  });
+
+  it('rejects an unknown role', () => {
+    expect(() => appRole({ APP_ROLE: 'both' })).toThrow(
+      'APP_ROLE must be one of all, api, worker; received "both"',
+    );
+  });
+
+  it('runs the delivery worker in every role except api', () => {
+    expect(runsDeliveryWorker({})).toBe(true);
+    expect(runsDeliveryWorker({ APP_ROLE: 'all' })).toBe(true);
+    expect(runsDeliveryWorker({ APP_ROLE: 'worker' })).toBe(true);
+    expect(runsDeliveryWorker({ APP_ROLE: 'api' })).toBe(false);
   });
 });
 

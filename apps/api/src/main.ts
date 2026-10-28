@@ -4,11 +4,26 @@ import { AppModule } from './app.module';
 import * as express from 'express';
 import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
-import { validateProductionEnvironment } from './config/environment';
+import {
+  appRole,
+  runsDeliveryWorker,
+  validateProductionEnvironment,
+} from './config/environment';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   validateProductionEnvironment();
   const app = await NestFactory.create(AppModule);
+
+  // Drain in-flight delivery jobs, close sockets, and disconnect Prisma and the
+  // realtime Redis clients when the platform sends SIGTERM.
+  app.enableShutdownHooks();
+
+  // Room membership must be shared so any instance can reach a socket held by
+  // another one. Must be registered before listen().
+  const redisIoAdapter = new RedisIoAdapter(app);
+  redisIoAdapter.connect();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -69,6 +84,11 @@ async function bootstrap() {
   console.log(`\n====================================================`);
   console.log(`  Notica Services Started Successfully!`);
   console.log(`  --------------------------------------------------`);
+  console.log(
+    `  Role:         ${appRole()} (delivery worker: ${
+      runsDeliveryWorker() ? 'on' : 'off'
+    })`,
+  );
   console.log(`  Backend API:  http://localhost:${port}`);
   console.log(`  Swagger Docs: http://localhost:${port}/api-docs`);
   console.log(
