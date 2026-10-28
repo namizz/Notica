@@ -2,6 +2,39 @@ import type { RedisOptions } from 'bullmq';
 
 const MIN_SECRET_LENGTH = 32;
 
+/**
+ * Deployment roles for a single build artifact.
+ *
+ * - `all`    serves HTTP and consumes the delivery queue (default; single-service deployments)
+ * - `api`    serves HTTP only, so request load never competes with delivery work
+ * - `worker` serves HTTP for health checks only and consumes the delivery queue
+ */
+export const APP_ROLES = ['all', 'api', 'worker'] as const;
+
+export type AppRole = (typeof APP_ROLES)[number];
+
+export function appRole(env: NodeJS.ProcessEnv = process.env): AppRole {
+  const value = env.APP_ROLE?.trim().toLowerCase();
+  if (!value) {
+    return 'all';
+  }
+
+  if (!APP_ROLES.includes(value as AppRole)) {
+    throw new Error(
+      `APP_ROLE must be one of ${APP_ROLES.join(', ')}; received "${value}"`,
+    );
+  }
+
+  return value as AppRole;
+}
+
+/** Only roles that own delivery register the BullMQ processor. */
+export function runsDeliveryWorker(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return appRole(env) !== 'api';
+}
+
 function required(env: NodeJS.ProcessEnv, key: string): string {
   const value = env[key]?.trim();
   if (!value) {
@@ -72,6 +105,9 @@ export function validateProductionEnvironment(
   if (!isProduction) {
     return;
   }
+
+  // Fail fast on a mistyped role rather than silently deploying the wrong one.
+  appRole(env);
 
   validateUrl(env, 'DATABASE_URL', ['postgresql:', 'postgres:']);
   const frontendUrl = validateUrl(env, 'FRONTEND_URL', ['https:']);
@@ -150,12 +186,8 @@ export function redisConnectionOptions(
     return {
       host: url.hostname,
       port: url.port ? Number(url.port) : 6379,
-      username: url.username
-        ? decodeURIComponent(url.username)
-        : undefined,
-      password: url.password
-        ? decodeURIComponent(url.password)
-        : undefined,
+      username: url.username ? decodeURIComponent(url.username) : undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
       tls: url.protocol === 'rediss:' ? {} : undefined,
       maxRetriesPerRequest: null,
     };
