@@ -6,6 +6,7 @@ Operations documentation, split by concern.
 | --- | --- |
 | [1-description.md](./1-description.md) | What Notica is, the processes to run, and every environment variable |
 | [2-render.md](./2-render.md) | Deploying the free-tier demo estate, and the monthly PostgreSQL rotation |
+| [2a-render-runbook.md](./2a-render-runbook.md) | The short operator version of the above — deploy steps and the rotation script |
 | [3-aws.md](./3-aws.md) | Deploying production on AWS |
 | [4-operations.md](./4-operations.md) | Scaling status, CI/CD, observability, backups, security, open gaps |
 

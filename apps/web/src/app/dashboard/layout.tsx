@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Projects & Keys', href: '/dashboard', icon: Layers },
     { name: 'Real-time Console', href: '/dashboard/console', icon: Activity },
     { name: 'Delivery Logs', href: '/dashboard/logs', icon: Terminal },
-    { name: 'Documentation', href: '/docs', icon: BookOpen },
+    { name: 'Documentation', href: '/', icon: BookOpen },
     { name: 'Active Sessions', href: '/dashboard/sessions', icon: Monitor },
     { name: '2FA Security', href: '/dashboard/security', icon: ShieldCheck },
   ];
