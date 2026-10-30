@@ -193,13 +193,24 @@ export function redisConnectionOptions(
     };
   }
 
-  const port = Number(env.REDIS_PORT || 6379);
+  // Render and several managed providers expose the instance as a single
+  // "host:port" string. Passed through verbatim, ioredis asks DNS to resolve a
+  // name containing the port, which always fails with ENOTFOUND. Split it here
+  // so the common copy-paste mistake is not a boot failure. Only an unambiguous
+  // single-colon form is split, so IPv6 literals are left alone.
+  const rawHost = env.REDIS_HOST?.trim() || 'localhost';
+  const segments = rawHost.split(':');
+  const hasEmbeddedPort = segments.length === 2 && /^\d+$/.test(segments[1]);
+  const host = hasEmbeddedPort ? segments[0] : rawHost;
+  const embeddedPort = hasEmbeddedPort ? segments[1] : undefined;
+
+  const port = Number(env.REDIS_PORT || embeddedPort || 6379);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('REDIS_PORT must be a valid TCP port');
   }
 
   return {
-    host: env.REDIS_HOST || 'localhost',
+    host,
     port,
     maxRetriesPerRequest: null,
   };
