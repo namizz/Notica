@@ -236,37 +236,6 @@ html[data-public-theme="light"] .public-site .public-gradient-text {
   background-image: linear-gradient(90deg, #7c3aed, #4f46e5 48%, #0284c7);
 }
 
-.docs-section-flow > section {
-  display: none;
-}
-
-.docs-section-flow > section:first-child {
-  display: block;
-}
-
-.docs-section-flow:has(> section:target) > section:first-child {
-  display: none;
-}
-
-.docs-section-flow > section:target {
-  display: block;
-}
-
-.docs-section-flow[data-active-section] > section {
-  display: none;
-}
-
-.docs-section-flow[data-active-section="overview"] > #overview,
-.docs-section-flow[data-active-section="quickstart"] > #quickstart,
-.docs-section-flow[data-active-section="concepts"] > #concepts,
-.docs-section-flow[data-active-section="api-reference"] > #api-reference,
-.docs-section-flow[data-active-section="client-sdk"] > #client-sdk,
-.docs-section-flow[data-active-section="web-push"] > #web-push,
-.docs-section-flow[data-active-section="security"] > #security,
-.docs-section-flow[data-active-section="errors"] > #errors {
-  display: block;
-}
-
 [data-doc-section-link][data-active="true"] {
   border-color: rgba(139, 92, 246, 0.3);
   background-color: rgba(139, 92, 246, 0.1);

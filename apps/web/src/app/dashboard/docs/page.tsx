@@ -8,7 +8,7 @@ export default function LegacyDashboardDocumentationPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/docs');
+    router.replace('/');
   }, [router]);
 
   return (
@@ -16,7 +16,7 @@ export default function LegacyDashboardDocumentationPage() {
       <p>
         Redirecting to{' '}
         <Link
-          href="/docs"
+          href="/"
           className="text-violet-400 transition-colors hover:text-violet-300"
         >
           documentation

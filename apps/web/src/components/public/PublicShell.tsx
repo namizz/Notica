@@ -43,10 +43,10 @@ export function PublicHeader() {
           <Brand />
 
           <nav className="hidden items-center gap-7 text-sm text-slate-400 md:flex" aria-label="Main navigation">
-            <Link href="/#product" className="transition-colors hover:text-white">Product</Link>
-            <Link href="/#how-it-works" className="transition-colors hover:text-white">How it works</Link>
-            <Link href="/docs" className="transition-colors hover:text-white">Documentation</Link>
-            <Link href="/#security" className="transition-colors hover:text-white">Security</Link>
+            <Link href="/#api-key" className="transition-colors hover:text-white">Get a key</Link>
+            <Link href="/#send" className="transition-colors hover:text-white">Send</Link>
+            <Link href="/#receive" className="transition-colors hover:text-white">Receive</Link>
+            <Link href="/#api" className="transition-colors hover:text-white">API reference</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -77,21 +77,21 @@ export function PublicFooter() {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Product</p>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Integrate</p>
           <div className="flex flex-col gap-3 text-sm text-slate-400">
-            <Link href="/#product" className="hover:text-white">Channels</Link>
-            <Link href="/#how-it-works" className="hover:text-white">Architecture</Link>
-            <Link href="/#security" className="hover:text-white">Security</Link>
-            <Link href="/login" className="hover:text-white">Dashboard</Link>
+            <Link href="/#api-key" className="hover:text-white">Get an API key</Link>
+            <Link href="/#send" className="hover:text-white">Send a notification</Link>
+            <Link href="/#receive" className="hover:text-white">Show them in your app</Link>
+            <Link href="/#push" className="hover:text-white">Web push</Link>
           </div>
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Developers</p>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reference</p>
           <div className="flex flex-col gap-3 text-sm text-slate-400">
-            <Link href="/docs" className="hover:text-white">Documentation</Link>
-            <Link href="/docs#quickstart" className="hover:text-white">Quickstart</Link>
-            <Link href="/docs#api-reference" className="hover:text-white">API reference</Link>
+            <Link href="/#api" className="hover:text-white">API reference</Link>
+            <Link href="/#errors" className="hover:text-white">Errors</Link>
+            <Link href="/login" className="hover:text-white">Dashboard</Link>
             <a
               href="https://github.com/namizz/Notica"
               className="inline-flex items-center gap-2 hover:text-white"

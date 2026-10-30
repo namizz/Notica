@@ -1,325 +1,640 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   Activity,
   ArrowRight,
   BellRing,
-  Braces,
+  BookOpen,
   CheckCircle2,
-  Clock3,
-  Code2,
-  Gauge,
+  CircleAlert,
   KeyRound,
   Layers3,
+  LockKeyhole,
   Mail,
   Radio,
-  ShieldCheck,
-  Sparkles,
+  Terminal,
   Webhook,
-  Zap,
 } from 'lucide-react';
 import { CodeBlock } from '@/components/public/CodeBlock';
+import { GetApiKeyCta } from '@/components/public/GetApiKeyCta';
+import { GuideNav } from '@/components/public/GuideNav';
 import { NotificationDemo } from '@/components/public/NotificationDemo';
 import { PublicFooter, PublicHeader } from '@/components/public/PublicShell';
 
 export const metadata: Metadata = {
-  title: 'Notica — Notification infrastructure for modern applications',
+  title: 'Notica — Notification API integration guide',
   description:
-    'Send in-app, web push, and email notifications through one reliable developer API with queues, realtime delivery, and tracking built in.',
+    'Send in-app, web push, and email notifications from your application with one authenticated request. Get an API key and integrate in three steps.',
 };
 
-const sendExample = `curl -X POST $NOTICA_API_URL/notifications \\
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const wsUrl = process.env.NEXT_PUBLIC_WS_URL || apiUrl;
+
+const sections = [
+  { id: 'start', label: 'What you can send' },
+  { id: 'api-key', label: '1 · Get your key' },
+  { id: 'send', label: '2 · Send one' },
+  { id: 'receive', label: '3 · Show in your app' },
+  { id: 'push', label: 'Web push' },
+  { id: 'email', label: 'Email' },
+  { id: 'api', label: 'API reference' },
+  { id: 'errors', label: 'Errors' },
+  { id: 'dashboard', label: 'Your dashboard' },
+] as const;
+
+const sectionIds = sections.map((section) => section.id);
+
+const sendCode = `curl -X POST ${apiUrl}/notifications \\
   -H "Content-Type: application/json" \\
-  -H "x-api-key: ntca_your_project_key" \\
+  -H "x-api-key: ntc_live_your_project_key" \\
   -d '{
     "recipientId": "user_842",
-    "title": "Payment received",
-    "body": "Your payment was processed.",
+    "title": "Order shipped",
+    "body": "Order #4895 is on its way.",
     "channel": "IN_APP"
   }'`;
 
-const features = [
-  {
-    icon: Radio,
-    title: 'Realtime by default',
-    description: 'Deliver in-app events over authenticated, recipient-scoped WebSocket connections.',
+const sendNodeCode = `await fetch("${apiUrl}/notifications", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": process.env.NOTICA_API_KEY,
   },
-  {
-    icon: Gauge,
-    title: 'Queues and retries',
-    description: 'Absorb traffic spikes and process every delivery asynchronously with Redis and BullMQ.',
-  },
-  {
-    icon: Activity,
-    title: 'Delivery visibility',
-    description: 'Inspect queued, sent, delivered, skipped, simulated, and failed outcomes in one place.',
-  },
-  {
-    icon: KeyRound,
-    title: 'Project isolation',
-    description: 'Keep tenants, projects, recipients, credentials, and realtime rooms strictly separated.',
-  },
-  {
-    icon: Braces,
-    title: 'Developer-first API',
-    description: 'Start with a clear REST API, copyable examples, Swagger reference, and a browser SDK.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Safer browser auth',
-    description: 'Use short-lived recipient tokens in the browser without exposing project API keys.',
-  },
-];
+  body: JSON.stringify({
+    recipientId: user.id,      // your own user ID
+    title: "Order shipped",
+    body: \`Order #\${order.number} is on its way.\`,
+    channel: "IN_APP",
+  }),
+});`;
+
+const tokenCode = `// Your server — the API key never leaves it.
+app.post("/api/notica/token", async (req, res) => {
+  const response = await fetch("${apiUrl}/client-tokens", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.NOTICA_API_KEY,
+    },
+    body: JSON.stringify({ recipientId: req.user.id }),
+  });
+
+  res.json(await response.json());
+});`;
+
+const sdkCode = `<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="${apiUrl}/sdk/notica.js"></script>
+
+<script>
+  // Ask your own server for a token — never ship the API key here.
+  const { clientToken } = await fetch("/api/notica/token", {
+    method: "POST",
+  }).then((response) => response.json());
+
+  Notica.init({
+    clientToken,
+    apiUrl: "${apiUrl}",
+    wsUrl: "${wsUrl}",
+  });
+
+  Notica.identify("user_842");
+
+  Notica.onNotification((notification) => {
+    showToast(notification.title, notification.body);
+  });
+</script>`;
+
+const pushCode = `// Needs a service worker at /sw.js in your site root.
+const enabled = await Notica.registerPush();
+
+if (enabled) {
+  console.log("This browser will now receive notifications in the background.");
+}`;
+
+const identifyCode = `curl -X POST ${apiUrl}/recipients/identify \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: ntc_live_your_project_key" \\
+  -d '{
+    "externalUserId": "user_842",
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  }'`;
 
 const channels = [
   {
     icon: BellRing,
+    name: 'IN_APP',
     title: 'In-app',
-    tag: 'Realtime',
-    description: 'Instant activity feeds, notification centers, badges, and toast alerts.',
+    description: 'Appears instantly inside your app. Needs the browser SDK from step 3.',
     color: 'text-violet-300 bg-violet-500/10 border-violet-500/20',
   },
   {
     icon: Webhook,
+    name: 'WEB_PUSH',
     title: 'Web push',
-    tag: 'Background',
-    description: 'Reach users through native browser notifications, even after they close your tab.',
+    description: 'A browser notification that arrives even when your tab is closed.',
     color: 'text-sky-300 bg-sky-500/10 border-sky-500/20',
   },
   {
     icon: Mail,
+    name: 'EMAIL',
     title: 'Email',
-    tag: 'Async',
-    description: 'Deliver transactional messages using SMTP through an extensible provider layer.',
+    description: 'A transactional email. Needs an email address on the recipient.',
     color: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20',
   },
 ];
 
-export default function HomePage() {
+const endpoints = [
+  ['POST', '/notifications', 'API key', 'Send a notification.'],
+  ['GET', '/notifications', 'API key', 'List sent notifications, paginated and filterable.'],
+  ['GET', '/notifications/recipient/:id', 'API key', 'One recipient’s notification history.'],
+  ['PATCH', '/notifications/:id/read', 'API key', 'Mark a notification as read.'],
+  ['POST', '/recipients/identify', 'API key', 'Attach a name and email to a recipient.'],
+  ['POST', '/client-tokens', 'API key', 'Issue a short-lived browser token for one recipient.'],
+  ['POST', '/device-tokens/register', 'Client token', 'Register a browser for web push.'],
+  ['GET', '/device-tokens/vapid-key', 'Client token', 'Public key used to create a push subscription.'],
+] as const;
+
+const fields = [
+  ['recipientId', 'string', 'Required', 'Your own user ID. Up to 191 characters.'],
+  ['title', 'string', 'Required', 'Up to 160 characters.'],
+  ['body', 'string', 'Required', 'Up to 5000 characters.'],
+  ['channel', 'enum', 'Required', 'IN_APP, WEB_PUSH, or EMAIL.'],
+] as const;
+
+const errors = [
+  ['201', 'Accepted. The notification is stored and queued for delivery.'],
+  ['400', 'A field is missing or too long. The response names the field.'],
+  ['401', 'The API key is missing, malformed, or revoked.'],
+  ['429', 'Too many requests. Back off and retry.'],
+] as const;
+
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="public-site min-h-screen overflow-hidden bg-[#070b12] text-slate-100">
+    <div className="mb-7">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">{eyebrow}</p>
+      <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{title}</h2>
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">{description}</p>
+    </div>
+  );
+}
+
+function Step({
+  number,
+  title,
+  children,
+}: {
+  number: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h3 className="flex items-center gap-3 font-semibold text-white">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 font-mono text-xs text-violet-300">
+          {number}
+        </span>
+        {title}
+      </h3>
+      <div className="ml-10 mt-2 space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function Callout({
+  tone,
+  title,
+  children,
+}: {
+  tone: 'warn' | 'good';
+  title: string;
+  children: React.ReactNode;
+}) {
+  const styles =
+    tone === 'warn'
+      ? 'border-amber-500/20 bg-amber-500/5'
+      : 'border-emerald-500/15 bg-emerald-500/5';
+  const Icon = tone === 'warn' ? CircleAlert : CheckCircle2;
+  const iconColor = tone === 'warn' ? 'text-amber-400' : 'text-emerald-400';
+  const titleColor = tone === 'warn' ? 'text-amber-200' : 'text-emerald-200';
+
+  return (
+    <div className={`rounded-2xl border p-5 ${styles}`}>
+      <div className="flex gap-3">
+        <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconColor}`} />
+        <div>
+          <h4 className={`text-sm font-semibold ${titleColor}`}>{title}</h4>
+          <div className="mt-1 text-sm leading-6 text-slate-400">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function IntegrationGuidePage() {
+  return (
+    <div className="public-site min-h-screen bg-[#070b12] text-slate-100">
+      <GuideNav sectionIds={sectionIds} />
       <PublicHeader />
 
-      <main>
-        <section className="public-grid relative">
-          <div className="absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[120px]" />
-          <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[0.82fr_1.18fr] lg:py-28">
-            <div>
-              <div className="public-hero-badge mb-6 inline-flex items-center gap-2 rounded-full border border-violet-400/15 bg-violet-500/5 px-3 py-1.5 text-xs font-medium text-violet-200">
-                <Sparkles className="h-3.5 w-3.5" />
-                Notification service API for modern apps
-              </div>
-              <h1 className="max-w-3xl text-5xl font-semibold leading-[1.03] tracking-[-0.045em] text-white sm:text-6xl">
-                Notification infrastructure
-                <span className="public-gradient-text bg-gradient-to-r from-violet-300 via-indigo-300 to-sky-300 bg-clip-text text-transparent"> for every application.</span>
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-8 text-slate-400 sm:text-lg">
-                Connect your ecommerce store, learning platform, communication product, or any other application to
-                one service for in-app, web push, and email notifications.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/register"
-                  className="public-primary-cta inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-violet-600/20 transition-colors hover:bg-violet-500"
-                >
-                  Start building free
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/docs"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.06]"
-                >
-                  <Code2 className="h-4 w-4" />
-                  Read the docs
-                </Link>
-              </div>
-              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-500">
-                {['REST API', 'JavaScript SDK', 'Recipient-scoped auth'].map((item) => (
-                  <span key={item} className="inline-flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -inset-6 rounded-full bg-violet-600/10 blur-3xl" />
-              <div className="relative overflow-hidden rounded-3xl border border-violet-400/15 bg-[#050811] p-1.5 shadow-2xl shadow-violet-950/30">
-                <Image
-                  src="/images/notica-notification-flow.png"
-                  alt="Ecommerce, language learning, and communication applications sending events through Notica to a user's phone, browser, and email"
-                  width={1536}
-                  height={1024}
-                  priority
-                  className="h-auto w-full rounded-[18px]"
-                />
-                <div className="absolute inset-x-5 bottom-5 flex flex-wrap items-center justify-center gap-2">
-                  {['Application events', 'Notica delivery hub', 'User notifications'].map((label, index) => (
-                    <span key={label} className="public-image-caption inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#080c14]/90 px-3 py-1.5 text-[10px] font-medium text-slate-300 backdrop-blur">
-                      <span className={`h-1.5 w-1.5 rounded-full ${index === 0 ? 'bg-violet-400' : index === 1 ? 'bg-indigo-300' : 'bg-emerald-400'}`} />
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+      <header className="border-b border-white/5 bg-white/[0.015]">
+        <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-500/15 bg-violet-500/5 px-3 py-1.5 text-xs text-violet-200">
+            <BookOpen className="h-3.5 w-3.5" />
+            Integration guide · API v1
           </div>
-        </section>
-
-        <section className="border-t border-white/5 bg-white/[0.015]">
-          <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[0.78fr_1.22fr]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Interactive delivery preview</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white">See one notification move through Notica.</h2>
-              <p className="mt-4 max-w-lg leading-7 text-slate-400">
-                Your application sends one authenticated request. Notica receives it, queues the work, delivers through
-                the selected channel, and records the result for your team.
-              </p>
-            </div>
-            <NotificationDemo />
+          <h1 className="max-w-3xl text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl">
+            Send notifications from your app in three steps.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400">
+            Notica delivers in-app, web push, and email notifications for your application. You send one
+            authenticated request. Notica stores it, delivers it, retries if it fails, and records what
+            happened.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <GetApiKeyCta />
+            <a
+              href="#send"
+              data-doc-section-link="send"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.06]"
+            >
+              <Terminal className="h-4 w-4" />
+              Skip to the request
+            </a>
           </div>
-        </section>
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-500">
+            {['One request to send', '3 delivery channels', 'REST API and browser SDK'].map((item) => (
+              <span key={item} className="inline-flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </header>
 
-        <section id="product" className="border-y border-white/5 bg-white/[0.015]">
-          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-24">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Delivery channels</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Meet users wherever they are.
-              </h2>
-              <p className="mt-4 leading-7 text-slate-400">
-                Use one recipient model and a consistent API while Notica handles the delivery details for each channel.
-              </p>
+      <nav
+        className="public-docs-mobile-nav sticky top-16 z-40 flex gap-2 overflow-x-auto border-b border-white/5 bg-[#070b12]/95 px-5 py-3 backdrop-blur lg:hidden"
+        aria-label="Guide sections"
+      >
+        {sections.map((section) => (
+          <a
+            key={section.id}
+            href={`#${section.id}`}
+            data-doc-section-link={section.id}
+            className="public-docs-nav-link shrink-0 rounded-full border border-white/7 bg-white/[0.025] px-3 py-1.5 text-xs text-slate-400 hover:text-white"
+          >
+            {section.label}
+          </a>
+        ))}
+      </nav>
+
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:py-14">
+        <aside className="hidden lg:block">
+          <nav className="sticky top-24" aria-label="Guide sections">
+            <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+              On this page
+            </p>
+            <div className="space-y-0.5">
+              {sections.map((section) => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  data-doc-section-link={section.id}
+                  className="public-docs-nav-link block rounded-lg border border-transparent px-2 py-2 text-sm text-slate-500 transition-colors hover:bg-white/[0.03] hover:text-white"
+                >
+                  {section.label}
+                </a>
+              ))}
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
+          </nav>
+        </aside>
+
+        <main className="min-w-0">
+          <section id="start" className="scroll-mt-28 border-b border-white/7 pb-14">
+            <SectionHeading
+              eyebrow="What you can send"
+              title="Three channels, one request shape"
+              description="Pick a channel per notification with the channel field. Everything else about the request stays the same."
+            />
+            <div className="grid gap-4 sm:grid-cols-3">
               {channels.map((channel) => {
                 const Icon = channel.icon;
                 return (
-                  <article key={channel.title} className="rounded-2xl border border-white/7 bg-slate-950/50 p-6 transition-transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className={`flex h-11 w-11 items-center justify-center rounded-xl border ${channel.color}`}>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className="rounded-full border border-white/7 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                        {channel.tag}
-                      </span>
-                    </div>
-                    <h3 className="mt-5 text-lg font-semibold text-white">{channel.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{channel.description}</p>
+                  <article key={channel.name} className="rounded-2xl border border-white/7 bg-white/[0.02] p-5">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${channel.color}`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-4 text-sm font-semibold text-white">{channel.title}</h3>
+                    <code className="mt-1 block font-mono text-[11px] text-violet-300">{channel.name}</code>
+                    <p className="mt-2 text-xs leading-6 text-slate-500">{channel.description}</p>
                   </article>
                 );
               })}
             </div>
-          </div>
-        </section>
 
-        <section id="how-it-works" className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">A shorter path to production</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              One request enters. A reliable delivery comes out.
-            </h2>
-            <p className="mt-4 max-w-xl leading-7 text-slate-400">
-              Identify a recipient, send a notification, and let Notica coordinate persistence, queues, channel delivery,
-              realtime events, and status tracking.
-            </p>
-            <div className="mt-8 space-y-5">
+            <h3 className="mt-10 text-sm font-semibold text-white">What happens after you send</h3>
+            <ol className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
-                ['01', 'Create a project', 'Get an API key for your application or environment.'],
-                ['02', 'Identify recipients', 'Sync each user to a project-scoped recipient profile.'],
-                ['03', 'Send and observe', 'Dispatch through the API and inspect outcomes in your dashboard.'],
-              ].map(([number, title, description]) => (
-                <div key={number} className="flex gap-4">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-violet-400/20 bg-violet-500/5 font-mono text-xs text-violet-300">
-                    {number}
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-white">{title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+                'Notica stores the notification and answers right away, so your request is never waiting on delivery.',
+                'Delivery runs in the background on the channel you chose.',
+                'If it fails, Notica retries automatically — up to three attempts.',
+                'Every attempt is recorded, and you can read the outcome in your dashboard.',
+              ].map((text, index) => (
+                <li key={text} className="flex gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-4">
+                  <span className="font-mono text-xs text-violet-300">{index + 1}</span>
+                  <span className="text-sm leading-6 text-slate-400">{text}</span>
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-8">
+              <NotificationDemo />
+            </div>
+          </section>
+
+          <section id="api-key" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Step 1"
+              title="Get your API key"
+              description="Your key identifies one project. Create a separate project for each application or environment you send from."
+            />
+            <div className="space-y-8">
+              <Step number="1" title="Create a free account">
+                <p className="text-sm leading-6 text-slate-500">
+                  Sign up with email, Google, or GitHub.
+                </p>
+                <GetApiKeyCta />
+              </Step>
+
+              <Step number="2" title="Create a project">
+                <p className="text-sm leading-6 text-slate-500">
+                  Name it after the app or environment it belongs to, such as{' '}
+                  <code className="text-slate-300">storefront-production</code>.
+                </p>
+              </Step>
+
+              <Step number="3" title="Copy the key">
+                <p className="text-sm leading-6 text-slate-500">
+                  Keys look like this. Store it as an environment variable on your server.
+                </p>
+                <CodeBlock code="NOTICA_API_KEY=ntc_live_4f8c21ab93e0d7..." label="env" />
+              </Step>
+            </div>
+
+            <div className="mt-8">
+              <Callout tone="warn" title="The key is shown once">
+                Notica stores only a fingerprint of your key, so it cannot be shown again or recovered — if
+                you lose it, rotate it in the dashboard and update your server. Keep it on your backend and
+                never put it in frontend code; browsers use a short-lived client token instead, which is{' '}
+                <a href="#receive" data-doc-section-link="receive" className="text-violet-300 hover:text-violet-200">
+                  step 3
+                </a>
+                .
+              </Callout>
+            </div>
+          </section>
+
+          <section id="send" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Step 2"
+              title="Send a notification"
+              description="One request from your backend. Use the ID your application already has for the user — Notica creates the recipient the first time it sees it, so there is nothing to register up front."
+            />
+            <div className="space-y-6">
+              <CodeBlock code={sendCode} label="curl" />
+              <CodeBlock code={sendNodeCode} label="node" />
+            </div>
+
+            <div className="mt-8">
+              <Callout tone="good" title="That is a working integration">
+                You can stop here if you only need email or web push. The notification is stored, delivered,
+                and visible in your dashboard. Continue to step 3 to show notifications inside your app.
+              </Callout>
+            </div>
+          </section>
+
+          <section id="receive" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Step 3"
+              title="Show notifications in your app"
+              description="For the IN_APP channel, the browser SDK opens a connection and hands you each notification as it arrives."
+            />
+            <div className="space-y-8">
+              <Step number="1" title="Issue a token from your server">
+                <p className="text-sm leading-6 text-slate-500">
+                  A client token is tied to one user and expires on its own, so it is safe to send to the
+                  browser. Your API key stays on the server.
+                </p>
+                <CodeBlock code={tokenCode} label="node" />
+              </Step>
+
+              <Step number="2" title="Connect in the browser">
+                <p className="text-sm leading-6 text-slate-500">
+                  Load the SDK, initialise it with the token, and handle incoming notifications however your
+                  UI needs — a toast, a badge, a notification centre.
+                </p>
+                <CodeBlock code={sdkCode} label="html" />
+              </Step>
+            </div>
+          </section>
+
+          <section id="push" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Optional"
+              title="Add web push"
+              description="Web push reaches a user after they close your tab. One SDK call asks permission, registers the browser, and stores the subscription."
+            />
+            <CodeBlock code={pushCode} label="javascript" />
+            <p className="mt-5 text-sm leading-7 text-slate-400">
+              After that, send with <code className="text-slate-300">&quot;channel&quot;: &quot;WEB_PUSH&quot;</code>. A recipient who
+              never granted permission has nothing to deliver to, and the attempt is reported as not
+              delivered rather than failed. Expired browser subscriptions are cleaned up for you.
+            </p>
+          </section>
+
+          <section id="email" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Optional"
+              title="Add email"
+              description="Email is the one channel that needs something extra: an address. Attach it to the recipient once, then send as usual."
+            />
+            <CodeBlock code={identifyCode} label="curl" />
+            <p className="mt-5 text-sm leading-7 text-slate-400">
+              Call this whenever a user signs up or changes their details. Then send with{' '}
+              <code className="text-slate-300">&quot;channel&quot;: &quot;EMAIL&quot;</code>. Sending to a recipient with no address on
+              file is reported as not delivered, with the reason recorded.
+            </p>
+          </section>
+
+          <section id="api" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Reference"
+              title="API reference"
+              description="Every endpoint takes JSON and returns JSON. Authenticate server requests with your project key in the x-api-key header."
+            />
+
+            <CodeBlock code={`x-api-key: ntc_live_your_project_key`} label="header" />
+
+            <h3 className="mt-10 text-sm font-semibold text-white">Endpoints</h3>
+            <div className="mt-4 space-y-2">
+              {endpoints.map(([method, path, auth, description]) => (
+                <div key={`${method} ${path}`} className="rounded-xl border border-white/7 bg-white/[0.02] p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span
+                      className={`rounded-md border px-2 py-1 font-mono text-[10px] font-bold ${
+                        method === 'GET'
+                          ? 'border-sky-500/20 bg-sky-500/10 text-sky-300'
+                          : method === 'PATCH'
+                            ? 'border-amber-500/20 bg-amber-500/10 text-amber-300'
+                            : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                      }`}
+                    >
+                      {method}
+                    </span>
+                    <code className="text-xs text-slate-200 sm:text-sm">{path}</code>
+                    <span className="rounded-full border border-white/7 px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-slate-500">
+                      {auth}
+                    </span>
                   </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
                 </div>
               ))}
             </div>
-          </div>
-          <CodeBlock code={sendExample} label="Send your first notification" />
-        </section>
 
-        <section className="border-y border-white/5 bg-white/[0.015]">
-          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-24">
-            <div className="text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Infrastructure included</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                The difficult parts are already connected.
-              </h2>
+            <h3 className="mt-10 text-sm font-semibold text-white">Request body for POST /notifications</h3>
+            <div className="mt-4 overflow-x-auto rounded-xl border border-white/7">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/7 bg-white/[0.02]">
+                    {['Field', 'Type', '', 'Notes'].map((heading, index) => (
+                      <th
+                        key={heading || index}
+                        className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+                      >
+                        {heading}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map(([name, type, required, notes]) => (
+                    <tr key={name} className="border-b border-white/7 last:border-0">
+                      <td className="px-4 py-3">
+                        <code className="text-xs text-violet-300">{name}</code>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{type}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{required}</td>
+                      <td className="px-4 py-3 text-sm leading-6 text-slate-400">{notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-white/7 bg-white/7 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature) => {
-                const Icon = feature.icon;
+
+            <p className="mt-6 text-sm leading-7 text-slate-400">
+              A full schema with request and response examples you can try is at{' '}
+              <a
+                href={`${apiUrl}/api-docs`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-violet-300 hover:text-violet-200"
+              >
+                {apiUrl}/api-docs
+              </a>
+              .
+            </p>
+          </section>
+
+          <section id="errors" className="scroll-mt-28 border-b border-white/7 py-14">
+            <SectionHeading
+              eyebrow="Errors"
+              title="When something goes wrong"
+              description="Request errors come back immediately with a status code. Delivery outcomes are recorded afterwards, because delivery happens in the background."
+            />
+            <div className="space-y-2">
+              {errors.map(([code, description]) => (
+                <div
+                  key={code}
+                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-white/7 bg-white/[0.02] p-4"
+                >
+                  <code className="font-mono text-sm font-bold text-slate-200">{code}</code>
+                  <span className="text-sm leading-6 text-slate-400">{description}</span>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="mt-10 text-sm font-semibold text-white">Delivery outcomes</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">
+              Each notification ends in one of three states, visible per attempt in your delivery logs.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                ['Delivered', 'The channel confirmed it reached the recipient.', 'text-emerald-300'],
+                ['Sent', 'Notica handed it off successfully and is awaiting confirmation.', 'text-sky-300'],
+                ['Not delivered', 'Nothing to deliver to, or the channel rejected it. The reason is recorded.', 'text-amber-300'],
+              ].map(([title, description, color]) => (
+                <article key={title} className="rounded-xl border border-white/7 bg-white/[0.02] p-4">
+                  <h4 className={`text-sm font-semibold ${color}`}>{title}</h4>
+                  <p className="mt-2 text-xs leading-6 text-slate-500">{description}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section id="dashboard" className="scroll-mt-28 pt-14">
+            <SectionHeading
+              eyebrow="Your dashboard"
+              title="Manage keys and watch deliveries"
+              description="Everything you need after the integration is live, in one place."
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                [Layers3, 'Projects and keys', 'Create projects, rotate a key, and see which prefix is live.'],
+                [Terminal, 'Delivery logs', 'Every notification and every attempt, filterable by channel and status.'],
+                [Activity, 'Live console', 'Watch deliveries stream in while you test your integration.'],
+                [Radio, 'Recipients', 'See who you have sent to and what they received.'],
+                [LockKeyhole, 'Account security', 'Two-factor authentication and active session management.'],
+                [KeyRound, 'One-time key reveal', 'Keys are fingerprinted at rest, so a leak of our database is not a leak of your key.'],
+              ].map(([Icon, title, description]) => {
+                const ItemIcon = Icon as typeof Layers3;
                 return (
-                  <article key={feature.title} className="bg-[#090d16] p-6">
-                    <Icon className="h-5 w-5 text-violet-300" />
-                    <h3 className="mt-4 font-semibold text-white">{feature.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
+                  <article key={title as string} className="rounded-2xl border border-white/7 bg-white/[0.02] p-5">
+                    <ItemIcon className="h-5 w-5 text-violet-300" />
+                    <h3 className="mt-4 text-sm font-semibold text-white">{title as string}</h3>
+                    <p className="mt-2 text-xs leading-6 text-slate-500">{description as string}</p>
                   </article>
                 );
               })}
             </div>
-          </div>
-        </section>
 
-        <section id="security" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
-          <div className="public-security-panel overflow-hidden rounded-3xl border border-violet-400/15 bg-gradient-to-br from-violet-500/10 via-slate-950 to-sky-500/5 p-7 sm:p-10">
-            <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
-              <div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-400/20 bg-violet-500/10 text-violet-200">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <h2 className="mt-6 text-3xl font-semibold tracking-tight text-white">Credentials stay on the right side of your stack.</h2>
-                <p className="mt-4 max-w-xl leading-7 text-slate-400">
-                  Project API keys authenticate server-to-server requests. Browser clients receive short-lived,
-                  recipient-scoped tokens, so master credentials never need to ship in frontend code.
-                </p>
-              </div>
-              <div className="space-y-3">
-                {[
-                  [KeyRound, 'One-time API key reveal and secure rotation'],
-                  [Layers3, 'Project and tenant scoped data access'],
-                  [Clock3, 'Short-lived tokens for browser sessions'],
-                  [Zap, 'Rate limiting and validated API payloads'],
-                ].map(([Icon, text]) => {
-                  const ItemIcon = Icon as typeof KeyRound;
-                  return (
-                    <div key={text as string} className="flex items-center gap-3 rounded-xl border border-white/7 bg-black/20 px-4 py-3 text-sm text-slate-300">
-                      <ItemIcon className="h-4 w-4 text-violet-300" />
-                      {text as string}
-                    </div>
-                  );
-                })}
+            <div className="mt-10 rounded-2xl border border-white/7 bg-white/[0.02] p-7 text-center">
+              <h3 className="text-xl font-semibold tracking-tight text-white">Ready to send your first one?</h3>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">
+                Create a project, copy the key, and run the request from step 2.
+              </p>
+              <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <GetApiKeyCta />
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.06]"
+                >
+                  Sign in
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="px-5 pb-24 sm:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">Ship the feature, not the notification system.</h2>
-            <p className="mx-auto mt-5 max-w-2xl leading-7 text-slate-400">
-              Create your first project, keep the API key on your server, and deliver a real notification in minutes.
-            </p>
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/register" className="public-white-cta inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-violet-100">
-                Create an account
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/docs#quickstart" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-white hover:bg-white/5">
-                View quickstart
-              </Link>
-            </div>
-          </div>
-        </section>
-      </main>
+          </section>
+        </main>
+      </div>
 
       <PublicFooter />
     </div>
