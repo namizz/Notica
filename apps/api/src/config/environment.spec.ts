@@ -149,4 +149,37 @@ describe('Redis connection options', () => {
       maxRetriesPerRequest: null,
     });
   });
+
+  it('splits a REDIS_HOST that already carries the port', () => {
+    // Render exposes Key Value as "red-xxxx:6379"; left joined, DNS is asked
+    // to resolve a hostname containing the port and fails with ENOTFOUND.
+    expect(
+      redisConnectionOptions({ REDIS_HOST: 'red-dbi3v8c9v7es738kmkv0:6379' }),
+    ).toEqual({
+      host: 'red-dbi3v8c9v7es738kmkv0',
+      port: 6379,
+      maxRetriesPerRequest: null,
+    });
+  });
+
+  it('lets an explicit REDIS_PORT win over an embedded one', () => {
+    expect(
+      redisConnectionOptions({
+        REDIS_HOST: 'redis.internal:6379',
+        REDIS_PORT: '6380',
+      }),
+    ).toEqual({
+      host: 'redis.internal',
+      port: 6380,
+      maxRetriesPerRequest: null,
+    });
+  });
+
+  it('leaves an IPv6 literal host untouched', () => {
+    expect(redisConnectionOptions({ REDIS_HOST: '::1' })).toEqual({
+      host: '::1',
+      port: 6379,
+      maxRetriesPerRequest: null,
+    });
+  });
 });
