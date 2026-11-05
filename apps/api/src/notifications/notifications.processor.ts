@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
+import { EmailDeliveryResult } from '../email/email-provider.interface';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
@@ -25,6 +26,16 @@ export interface NotificationJobData {
 interface PushError extends Error {
   statusCode?: number;
 }
+
+/**
+ * Delivery outcomes that mean the provider was already handed the message.
+ * A retried or stalled job that finds one of these must not send again.
+ */
+const COMPLETED_DELIVERY_STATUSES: DeliveryStatus[] = [
+  DeliveryStatus.SUCCESS,
+  DeliveryStatus.SIMULATED,
+  DeliveryStatus.SKIPPED,
+];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown delivery failure';
@@ -96,6 +107,15 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   private async processInApp(data: NotificationJobData, attemptCount: number) {
+    const previous = await this.findCompletedDelivery(data.notificationId);
+    if (previous) {
+      await this.resumeCompletedDelivery(data, NotificationStatus.SENT);
+      return {
+        success: previous.status === DeliveryStatus.SUCCESS,
+        status: NotificationStatus.SENT,
+      };
+    }
+
     const delivery = await this.createDelivery(
       data.notificationId,
       'socket.io',
@@ -116,22 +136,21 @@ export class NotificationsProcessor extends WorkerHost {
     );
 
     const skipped = connectedClients === 0;
-    await Promise.all([
-      this.prisma.notification.update({
-        where: { id: data.notificationId },
-        data: { status: NotificationStatus.SENT },
-      }),
-      this.prisma.notificationDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: skipped ? DeliveryStatus.SKIPPED : DeliveryStatus.SUCCESS,
-          errorMessage: skipped
-            ? 'No recipient was connected; notification remains available in history.'
-            : null,
-          sentAt: new Date(),
-        },
-      }),
-    ]);
+    // Record the delivery before anything else can fail, so a retry sees it.
+    await this.prisma.notificationDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        status: skipped ? DeliveryStatus.SKIPPED : DeliveryStatus.SUCCESS,
+        errorMessage: skipped
+          ? 'No recipient was connected; notification remains available in history.'
+          : null,
+        sentAt: new Date(),
+      },
+    });
+    await this.prisma.notification.update({
+      where: { id: data.notificationId },
+      data: { status: NotificationStatus.SENT },
+    });
 
     this.realtimeGateway.sendLogToProject(data.tenantId, data.projectId, {
       timestamp: new Date(),
@@ -160,7 +179,20 @@ export class NotificationsProcessor extends WorkerHost {
       },
     });
 
-    if (tokens.length === 0) {
+    const deliveredProviders = new Set(
+      (
+        await this.prisma.notificationDelivery.findMany({
+          where: {
+            notificationId: data.notificationId,
+            provider: { startsWith: 'web-push:' },
+            status: DeliveryStatus.SUCCESS,
+          },
+          select: { provider: true },
+        })
+      ).map((delivery) => delivery.provider),
+    );
+
+    if (tokens.length === 0 && deliveredProviders.size === 0) {
       await Promise.all([
         this.prisma.notification.update({
           where: { id: data.notificationId },
@@ -188,8 +220,14 @@ export class NotificationsProcessor extends WorkerHost {
       return { success: false, status: NotificationStatus.FAILED };
     }
 
+    // Devices that already received this notification on an earlier attempt
+    // are not pushed again.
+    const pendingTokens = tokens.filter(
+      (token) => !deliveredProviders.has(`web-push:${token.id}`),
+    );
+
     const outcomes = await Promise.all(
-      tokens.map(async (token) => {
+      pendingTokens.map(async (token) => {
         const delivery = await this.createDelivery(
           data.notificationId,
           `web-push:${token.id}`,
@@ -202,14 +240,6 @@ export class NotificationsProcessor extends WorkerHost {
             body: data.body,
             notificationId: data.notificationId,
           });
-          await this.prisma.notificationDelivery.update({
-            where: { id: delivery.id },
-            data: {
-              status: DeliveryStatus.SUCCESS,
-              sentAt: new Date(),
-            },
-          });
-          return true;
         } catch (error: unknown) {
           const failure = pushError(error);
           await this.prisma.notificationDelivery.update({
@@ -228,11 +258,23 @@ export class NotificationsProcessor extends WorkerHost {
           }
           return false;
         }
+
+        // Outside the try: a failed bookkeeping write must not relabel a push
+        // the device already received as a failed send.
+        await this.prisma.notificationDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: DeliveryStatus.SUCCESS,
+            sentAt: new Date(),
+          },
+        });
+        return true;
       }),
     );
 
-    const succeeded = outcomes.filter(Boolean).length;
-    const failed = outcomes.length - succeeded;
+    const newlySucceeded = outcomes.filter(Boolean).length;
+    const succeeded = deliveredProviders.size + newlySucceeded;
+    const failed = outcomes.length - newlySucceeded;
     if (succeeded === 0) {
       throw new Error('Web Push delivery failed on every registered device.');
     }
@@ -257,6 +299,16 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   private async processEmail(data: NotificationJobData, attemptCount: number) {
+    const previous = await this.findCompletedDelivery(data.notificationId);
+    if (previous) {
+      const status =
+        previous.status === DeliveryStatus.SIMULATED
+          ? NotificationStatus.SENT
+          : NotificationStatus.DELIVERED;
+      await this.resumeCompletedDelivery(data, status);
+      return { success: true, status };
+    }
+
     const recipient = await this.prisma.recipientUser.findFirst({
       where: {
         id: data.recipientDbId,
@@ -282,45 +334,13 @@ export class NotificationsProcessor extends WorkerHost {
       throw new Error('Recipient has no email address configured.');
     }
 
+    let result: EmailDeliveryResult;
     try {
-      const result = await this.emailService.sendEmail(
+      result = await this.emailService.sendEmail(
         recipient.email,
         data.title,
         data.body,
       );
-      const notificationStatus = result.simulated
-        ? NotificationStatus.SENT
-        : NotificationStatus.DELIVERED;
-
-      await Promise.all([
-        this.prisma.notification.update({
-          where: { id: data.notificationId },
-          data: { status: notificationStatus },
-        }),
-        this.prisma.notificationDelivery.update({
-          where: { id: delivery.id },
-          data: {
-            provider: result.provider,
-            status: result.simulated
-              ? DeliveryStatus.SIMULATED
-              : DeliveryStatus.SUCCESS,
-            sentAt: new Date(),
-          },
-        }),
-      ]);
-
-      this.realtimeGateway.sendLogToProject(data.tenantId, data.projectId, {
-        timestamp: new Date(),
-        type: result.simulated ? 'warning' : 'success',
-        message: result.simulated
-          ? `Email simulated in console for ${recipient.email}`
-          : `Email delivered via ${result.provider} to ${recipient.email}`,
-        notificationId: data.notificationId,
-        recipientId: data.externalUserId,
-        channel: data.channel,
-      });
-
-      return { success: true, status: notificationStatus };
     } catch (error: unknown) {
       await this.prisma.notificationDelivery.update({
         where: { id: delivery.id },
@@ -332,6 +352,74 @@ export class NotificationsProcessor extends WorkerHost {
       });
       throw error;
     }
+
+    const notificationStatus = result.simulated
+      ? NotificationStatus.SENT
+      : NotificationStatus.DELIVERED;
+
+    // Record the delivery before anything else can fail, so a retry sees it.
+    // Outside the try above: a failed bookkeeping write must not relabel an
+    // email that was already sent as a failed send.
+    await this.prisma.notificationDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        provider: result.provider,
+        status: result.simulated
+          ? DeliveryStatus.SIMULATED
+          : DeliveryStatus.SUCCESS,
+        sentAt: new Date(),
+      },
+    });
+    await this.prisma.notification.update({
+      where: { id: data.notificationId },
+      data: { status: notificationStatus },
+    });
+
+    this.realtimeGateway.sendLogToProject(data.tenantId, data.projectId, {
+      timestamp: new Date(),
+      type: result.simulated ? 'warning' : 'success',
+      message: result.simulated
+        ? `Email simulated in console for ${recipient.email}`
+        : `Email delivered via ${result.provider} to ${recipient.email}`,
+      notificationId: data.notificationId,
+      recipientId: data.externalUserId,
+      channel: data.channel,
+    });
+
+    return { success: true, status: notificationStatus };
+  }
+
+  private findCompletedDelivery(notificationId: string) {
+    return this.prisma.notificationDelivery.findFirst({
+      where: {
+        notificationId,
+        status: { in: COMPLETED_DELIVERY_STATUSES },
+      },
+      select: { status: true },
+    });
+  }
+
+  /**
+   * An earlier attempt already handed the message to the provider but did not
+   * finish its bookkeeping (a database error, or the worker died). Finish it
+   * without sending a duplicate.
+   */
+  private async resumeCompletedDelivery(
+    data: NotificationJobData,
+    status: NotificationStatus,
+  ) {
+    await this.prisma.notification.update({
+      where: { id: data.notificationId },
+      data: { status },
+    });
+    this.realtimeGateway.sendLogToProject(data.tenantId, data.projectId, {
+      timestamp: new Date(),
+      type: 'info',
+      message: `Notification ${data.notificationId.slice(0, 8)} was already delivered on an earlier attempt; skipped duplicate send`,
+      notificationId: data.notificationId,
+      recipientId: data.externalUserId,
+      channel: data.channel,
+    });
   }
 
   private createDelivery(

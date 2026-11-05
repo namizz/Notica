@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Headers,
   Post,
   Patch,
   Body,
@@ -9,6 +10,7 @@ import {
   Req,
   UseGuards,
   Query,
+  Res,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -17,7 +19,7 @@ import { NotificationsService } from './notifications.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { ListNotificationsDto } from './dto/list-notifications.dto';
-import { Request } from 'express';
+import type { Request, Response } from 'express';
 
 interface NotificationRequest extends Request {
   user: {
@@ -25,6 +27,8 @@ interface NotificationRequest extends Request {
     projectId?: string;
   };
 }
+
+const MAX_IDEMPOTENCY_KEY_LENGTH = 255;
 
 @ApiTags('Notifications')
 @UseGuards(ThrottlerGuard, AuthGuard(['jwt', 'api-key']))
@@ -56,6 +60,21 @@ export class NotificationsController {
     return projectId;
   }
 
+  private resolveIdempotencyKey(header: string | undefined) {
+    if (header === undefined) {
+      return undefined;
+    }
+
+    const key = header.trim();
+    if (!key || key.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+      throw new BadRequestException(
+        `Idempotency-Key must be 1-${MAX_IDEMPOTENCY_KEY_LENGTH} characters`,
+      );
+    }
+
+    return key;
+  }
+
   @Post()
   @ApiOperation({ summary: 'Trigger a notification to a recipient user' })
   @ApiHeader({
@@ -63,19 +82,46 @@ export class NotificationsController {
     description: 'API Key for project authorization (if not using JWT)',
     required: false,
   })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    description:
+      'Unique value (e.g. a UUID) per notification. Retrying with the same key returns the original notification instead of sending it again. Keys are scoped to the project and never expire.',
+    required: false,
+  })
   @ApiResponse({
     status: 201,
-    description: 'Notification queued successfully.',
+    description:
+      'Notification queued successfully. A retry with an already used Idempotency-Key returns the original notification with the Idempotent-Replayed: true header.',
   })
+  @ApiResponse({ status: 400, description: 'Invalid Idempotency-Key.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  create(
+  @ApiResponse({
+    status: 422,
+    description:
+      'Idempotency-Key was already used with a different recipient, title, body, or channel.',
+  })
+  async create(
     @Req() request: NotificationRequest,
+    @Res({ passthrough: true }) response: Response,
     @CurrentTenant() tenantId: string,
     @Query('projectId') requestedProjectId: string | undefined,
+    @Headers('idempotency-key') idempotencyKeyHeader: string | undefined,
     @Body() dto: SendNotificationDto,
   ) {
     const projectId = this.resolveProjectId(request, requestedProjectId);
-    return this.notificationsService.sendNotification(tenantId, projectId, dto);
+    const idempotencyKey = this.resolveIdempotencyKey(idempotencyKeyHeader);
+    const { notification, replayed } =
+      await this.notificationsService.sendNotification(
+        tenantId,
+        projectId,
+        dto,
+        idempotencyKey,
+      );
+
+    if (replayed) {
+      response.setHeader('Idempotent-Replayed', 'true');
+    }
+    return notification;
   }
 
   @Get()
