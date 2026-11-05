@@ -18,6 +18,8 @@ describe('NotificationsProcessor delivery status', () => {
   const notificationDelivery = {
     create: jest.fn(),
     update: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
   };
   const deviceToken = { findMany: jest.fn(), delete: jest.fn() };
   const recipientUser = { findFirst: jest.fn() };
@@ -63,6 +65,8 @@ describe('NotificationsProcessor delivery status', () => {
     notification.update.mockResolvedValue({});
     notificationDelivery.create.mockResolvedValue({ id: 'delivery-1' });
     notificationDelivery.update.mockResolvedValue({});
+    notificationDelivery.findFirst.mockResolvedValue(null);
+    notificationDelivery.findMany.mockResolvedValue([]);
   });
 
   it('marks an offline in-app attempt as skipped instead of delivered', async () => {
@@ -115,5 +119,82 @@ describe('NotificationsProcessor delivery status', () => {
         }),
       }),
     );
+  });
+
+  describe('retries after an earlier attempt already delivered', () => {
+    it('does not emit an in-app notification twice', async () => {
+      notificationDelivery.findFirst.mockResolvedValue({
+        status: DeliveryStatus.SUCCESS,
+      });
+
+      await expect(processor.process(job(ChannelType.IN_APP))).resolves.toEqual(
+        { success: true, status: NotificationStatus.SENT },
+      );
+      expect(gateway.sendNotificationToRoom).not.toHaveBeenCalled();
+      expect(notificationDelivery.create).not.toHaveBeenCalled();
+      expect(notification.update).toHaveBeenLastCalledWith({
+        where: { id: 'notification-1' },
+        data: { status: NotificationStatus.SENT },
+      });
+    });
+
+    it('does not send an email twice', async () => {
+      notificationDelivery.findFirst.mockResolvedValue({
+        status: DeliveryStatus.SUCCESS,
+      });
+
+      await expect(processor.process(job(ChannelType.EMAIL))).resolves.toEqual({
+        success: true,
+        status: NotificationStatus.DELIVERED,
+      });
+      expect(emailService.sendEmail).not.toHaveBeenCalled();
+      expect(notificationDelivery.create).not.toHaveBeenCalled();
+    });
+
+    it('pushes only to devices that have not received it yet', async () => {
+      deviceToken.findMany.mockResolvedValue([
+        { id: 'token-1', token: 'subscription-1' },
+        { id: 'token-2', token: 'subscription-2' },
+      ]);
+      notificationDelivery.findMany.mockResolvedValue([
+        { provider: 'web-push:token-1' },
+      ]);
+      pushService.sendPushNotification.mockResolvedValue(undefined);
+
+      await expect(
+        processor.process(job(ChannelType.WEB_PUSH)),
+      ).resolves.toEqual({
+        success: true,
+        status: NotificationStatus.DELIVERED,
+      });
+      expect(pushService.sendPushNotification).toHaveBeenCalledTimes(1);
+      expect(pushService.sendPushNotification).toHaveBeenCalledWith(
+        'subscription-2',
+        expect.anything(),
+      );
+    });
+  });
+
+  it('keeps a sent email marked as sent when the status write fails', async () => {
+    recipientUser.findFirst.mockResolvedValue({ email: 'user@example.com' });
+    emailService.sendEmail.mockResolvedValue({
+      provider: 'smtp',
+      delivered: true,
+      simulated: false,
+    });
+    notification.update
+      .mockResolvedValueOnce({}) // PROCESSING
+      .mockRejectedValueOnce(new Error('database unavailable')) // DELIVERED
+      .mockResolvedValue({}); // FAILED, from the error handler
+
+    await expect(processor.process(job(ChannelType.EMAIL))).rejects.toThrow(
+      'database unavailable',
+    );
+    // The SUCCESS record is what lets the retry skip a second send.
+    expect(notificationDelivery.update).toHaveBeenCalledTimes(1);
+    const [[deliveryUpdate]] = notificationDelivery.update.mock.calls as [
+      [{ data: { status: DeliveryStatus } }],
+    ];
+    expect(deliveryUpdate.data.status).toBe(DeliveryStatus.SUCCESS);
   });
 });
