@@ -47,6 +47,7 @@ const sectionIds = sections.map((section) => section.id);
 const sendCode = `curl -X POST ${apiUrl}/notifications \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: ntc_live_your_project_key" \\
+  -H "Idempotency-Key: order-4895-shipped" \\
   -d '{
     "recipientId": "user_842",
     "title": "Order shipped",
@@ -59,6 +60,8 @@ const sendNodeCode = `await fetch("${apiUrl}/notifications", {
   headers: {
     "Content-Type": "application/json",
     "x-api-key": process.env.NOTICA_API_KEY,
+    // Same key on every retry, so a retried request is never sent twice
+    "Idempotency-Key": \`order-\${order.number}-shipped\`,
   },
   body: JSON.stringify({
     recipientId: user.id,      // your own user ID
@@ -166,6 +169,7 @@ const errors = [
   ['201', 'Accepted. The notification is stored and queued for delivery.'],
   ['400', 'A field is missing or too long. The response names the field.'],
   ['401', 'The API key is missing, malformed, or revoked.'],
+  ['422', 'The Idempotency-Key was already used for a different notification.'],
   ['429', 'Too many requests. Back off and retry.'],
 ] as const;
 
@@ -539,6 +543,14 @@ export default function IntegrationGuidePage() {
                 </tbody>
               </table>
             </div>
+
+            <h3 className="mt-10 text-sm font-semibold text-white">Safe retries</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">
+              Send an <code className="text-xs text-violet-300">Idempotency-Key</code> header (up to 255 characters)
+              with POST /notifications and reuse it when you retry. A repeated key returns the original notification
+              with <code className="text-xs text-violet-300">Idempotent-Replayed: true</code> instead of sending it
+              again. Keys are scoped to your project and never expire, so make each one unique per notification.
+            </p>
 
             <p className="mt-6 text-sm leading-7 text-slate-400">
               A full schema with request and response examples you can try is at{' '}

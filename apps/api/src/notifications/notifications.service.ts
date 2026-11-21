@@ -2,14 +2,22 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
-import { NotificationStatus, Prisma } from '@prisma/client';
+import { Notification, NotificationStatus, Prisma } from '@prisma/client';
 import { sanitizeText } from './utils/sanitize.util';
 import { ListNotificationsDto } from './dto/list-notifications.dto';
+import type { NotificationJobData } from './notifications.processor';
+
+/** The fields a replayed request must repeat exactly to reuse its key. */
+type ReplayableRequest = Pick<
+  SendNotificationDto,
+  'recipientId' | 'title' | 'body' | 'channel'
+>;
 
 @Injectable()
 export class NotificationsService {
@@ -33,68 +41,145 @@ export class NotificationsService {
     tenantId: string,
     projectId: string,
     dto: SendNotificationDto,
-  ) {
+    idempotencyKey?: string,
+  ): Promise<{ notification: Notification; replayed: boolean }> {
     const { recipientId, title, body, channel } = dto;
     const sanitizedTitle = sanitizeText(title);
     const sanitizedBody = sanitizeText(body);
     await this.assertProjectAccess(tenantId, projectId);
 
-    // 1. Resolve or auto-create the recipient user
-    let recipient = await this.prisma.recipientUser.findUnique({
+    const request: ReplayableRequest = {
+      recipientId,
+      title: sanitizedTitle,
+      body: sanitizedBody,
+      channel,
+    };
+
+    if (idempotencyKey) {
+      const existing = await this.findByIdempotencyKey(
+        projectId,
+        idempotencyKey,
+      );
+      if (existing) {
+        return this.replay(existing, request);
+      }
+    }
+
+    // 1. Resolve or auto-create the recipient user. Upsert keeps two
+    // concurrent first sends to the same recipient from colliding.
+    const recipient = await this.prisma.recipientUser.upsert({
       where: {
         projectId_externalUserId: {
           projectId,
           externalUserId: recipientId,
         },
       },
+      update: {},
+      create: {
+        tenantId,
+        projectId,
+        externalUserId: recipientId,
+      },
     });
 
-    if (!recipient) {
-      recipient = await this.prisma.recipientUser.create({
+    // 2. Create the notification record in DB (PENDING status)
+    let notification: Notification;
+    try {
+      notification = await this.prisma.notification.create({
         data: {
           tenantId,
           projectId,
-          externalUserId: recipientId,
+          recipientUserId: recipient.id,
+          title: sanitizedTitle,
+          body: sanitizedBody,
+          channel,
+          status: NotificationStatus.PENDING,
+          idempotencyKey,
         },
       });
+    } catch (error: unknown) {
+      // A concurrent request with the same key won the insert; answer with
+      // its notification rather than failing or sending a second one.
+      if (
+        idempotencyKey &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existing = await this.findByIdempotencyKey(
+          projectId,
+          idempotencyKey,
+        );
+        if (existing) {
+          return this.replay(existing, request);
+        }
+      }
+      throw error;
     }
 
-    // 2. Create the notification record in DB (PENDING status)
-    const notification = await this.prisma.notification.create({
-      data: {
-        tenantId,
-        projectId,
-        recipientUserId: recipient.id,
-        title: sanitizedTitle,
-        body: sanitizedBody,
-        channel,
-        status: NotificationStatus.PENDING,
+    // 3. Enqueue the asynchronous delivery job into BullMQ
+    await this.enqueueDelivery(notification, recipient.externalUserId);
+
+    return { notification, replayed: false };
+  }
+
+  private findByIdempotencyKey(projectId: string, idempotencyKey: string) {
+    return this.prisma.notification.findUnique({
+      where: { projectId_idempotencyKey: { projectId, idempotencyKey } },
+      include: { recipientUser: { select: { externalUserId: true } } },
+    });
+  }
+
+  private async replay(
+    existing: Notification & { recipientUser: { externalUserId: string } },
+    request: ReplayableRequest,
+  ) {
+    const { recipientUser, ...notification } = existing;
+
+    if (
+      recipientUser.externalUserId !== request.recipientId ||
+      notification.title !== request.title ||
+      notification.body !== request.body ||
+      notification.channel !== request.channel
+    ) {
+      throw new UnprocessableEntityException(
+        'Idempotency-Key was already used for a different notification',
+      );
+    }
+
+    // The original request may have stored the row and then failed to reach
+    // Redis. Enqueueing again is safe: the fixed job id makes BullMQ ignore it
+    // while the original job still exists.
+    if (notification.status === NotificationStatus.PENDING) {
+      await this.enqueueDelivery(notification, recipientUser.externalUserId);
+    }
+
+    return { notification, replayed: true };
+  }
+
+  private async enqueueDelivery(
+    notification: Notification,
+    externalUserId: string,
+  ) {
+    const job: NotificationJobData = {
+      notificationId: notification.id,
+      tenantId: notification.tenantId,
+      projectId: notification.projectId,
+      recipientDbId: notification.recipientUserId,
+      externalUserId,
+      title: notification.title,
+      body: notification.body,
+      channel: notification.channel,
+    };
+
+    await this.deliveryQueue.add('send-notification', job, {
+      // One job per notification, so the same notification is never queued twice.
+      jobId: notification.id,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000, // 5s, 10s, 20s...
       },
     });
-
-    // 3. Enqueue the asynchronous delivery job into BullMQ
-    await this.deliveryQueue.add(
-      'send-notification',
-      {
-        notificationId: notification.id,
-        tenantId,
-        projectId,
-        recipientDbId: recipient.id,
-        externalUserId: recipient.externalUserId,
-        title: sanitizedTitle,
-        body: sanitizedBody,
-        channel,
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000, // 5s, 10s, 20s...
-        },
-      },
-    );
-
-    return notification;
   }
 
   async getRecipientNotifications(

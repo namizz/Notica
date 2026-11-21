@@ -75,7 +75,9 @@ async function bootstrap() {
     },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization, x-api-key',
+    allowedHeaders:
+      'Content-Type, Accept, Authorization, x-api-key, Idempotency-Key',
+    exposedHeaders: 'Idempotent-Replayed',
   });
 
   const port = process.env.PORT ?? 8000;
