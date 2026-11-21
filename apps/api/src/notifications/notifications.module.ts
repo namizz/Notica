@@ -7,7 +7,6 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { PushModule } from '../push/push.module';
-import { EmailModule } from '../email/email.module';
 import { runsDeliveryWorker } from '../config/environment';
 
 // APP_ROLE=api leaves delivery to the worker role, so request handling never
@@ -21,7 +20,6 @@ const deliveryProviders = runsDeliveryWorker() ? [NotificationsProcessor] : [];
     AuthModule,
     RealtimeModule,
     PushModule,
-    EmailModule,
     BullModule.registerQueue({
       name: 'notification-delivery',
     }),

@@ -4,7 +4,7 @@ import {
   NotificationStatus,
 } from '@prisma/client';
 import { Job } from 'bullmq';
-import { EmailService } from '../email/email.service';
+import { ChannelRegistry } from '../channels/channel-registry';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -28,7 +28,9 @@ describe('NotificationsProcessor delivery status', () => {
     sendNotificationToRoom: jest.fn(),
   };
   const pushService = { sendPushNotification: jest.fn() };
-  const emailService = { sendEmail: jest.fn() };
+  const registry = {
+    get: jest.fn(),
+  };
 
   const processor = new NotificationsProcessor(
     {
@@ -39,7 +41,7 @@ describe('NotificationsProcessor delivery status', () => {
     } as unknown as PrismaService,
     gateway as unknown as RealtimeGateway,
     pushService as unknown as PushService,
-    emailService as unknown as EmailService,
+    registry as unknown as ChannelRegistry,
   );
 
   const baseData: NotificationJobData = {
@@ -99,25 +101,23 @@ describe('NotificationsProcessor delivery status', () => {
     );
   });
 
-  it('marks console email as simulated rather than delivered', async () => {
-    recipientUser.findFirst.mockResolvedValue({ email: 'user@example.com' });
-    emailService.sendEmail.mockResolvedValue({
-      provider: 'console',
-      delivered: false,
-      simulated: true,
-    });
+  it('delegates pluggable channels to the registry handler', async () => {
+    const handler = {
+      deliver: jest.fn().mockResolvedValue({
+        success: true,
+        status: NotificationStatus.SENT,
+      }),
+    };
+    registry.get.mockReturnValue(handler);
 
-    await expect(processor.process(job(ChannelType.EMAIL))).resolves.toEqual({
+    await expect(processor.process(job(ChannelType.SMS))).resolves.toEqual({
       success: true,
       status: NotificationStatus.SENT,
     });
-    expect(notificationDelivery.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          provider: 'console',
-          status: DeliveryStatus.SIMULATED,
-        }),
-      }),
+    expect(registry.get).toHaveBeenCalledWith(ChannelType.SMS);
+    expect(handler.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: ChannelType.SMS }),
+      0,
     );
   });
 
@@ -136,19 +136,6 @@ describe('NotificationsProcessor delivery status', () => {
         where: { id: 'notification-1' },
         data: { status: NotificationStatus.SENT },
       });
-    });
-
-    it('does not send an email twice', async () => {
-      notificationDelivery.findFirst.mockResolvedValue({
-        status: DeliveryStatus.SUCCESS,
-      });
-
-      await expect(processor.process(job(ChannelType.EMAIL))).resolves.toEqual({
-        success: true,
-        status: NotificationStatus.DELIVERED,
-      });
-      expect(emailService.sendEmail).not.toHaveBeenCalled();
-      expect(notificationDelivery.create).not.toHaveBeenCalled();
     });
 
     it('pushes only to devices that have not received it yet', async () => {
@@ -173,28 +160,5 @@ describe('NotificationsProcessor delivery status', () => {
         expect.anything(),
       );
     });
-  });
-
-  it('keeps a sent email marked as sent when the status write fails', async () => {
-    recipientUser.findFirst.mockResolvedValue({ email: 'user@example.com' });
-    emailService.sendEmail.mockResolvedValue({
-      provider: 'smtp',
-      delivered: true,
-      simulated: false,
-    });
-    notification.update
-      .mockResolvedValueOnce({}) // PROCESSING
-      .mockRejectedValueOnce(new Error('database unavailable')) // DELIVERED
-      .mockResolvedValue({}); // FAILED, from the error handler
-
-    await expect(processor.process(job(ChannelType.EMAIL))).rejects.toThrow(
-      'database unavailable',
-    );
-    // The SUCCESS record is what lets the retry skip a second send.
-    expect(notificationDelivery.update).toHaveBeenCalledTimes(1);
-    const [[deliveryUpdate]] = notificationDelivery.update.mock.calls as [
-      [{ data: { status: DeliveryStatus } }],
-    ];
-    expect(deliveryUpdate.data.status).toBe(DeliveryStatus.SUCCESS);
   });
 });

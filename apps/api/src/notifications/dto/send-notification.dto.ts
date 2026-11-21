@@ -1,6 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ChannelType } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class SendNotificationDto {
   @ApiProperty({
@@ -37,4 +44,22 @@ export class SendNotificationDto {
   })
   @IsEnum(ChannelType)
   channel: ChannelType;
+
+  @ApiPropertyOptional({
+    description: 'Email address to associate with the recipient (EMAIL channel)',
+    example: 'alice@example.com',
+  })
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Phone number in E.164 format to associate with the recipient (SMS channel)',
+    example: '+251911234567',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
 }

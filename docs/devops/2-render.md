@@ -100,6 +100,17 @@ services:
       - { key: SMTP_USER, sync: false }
       - { key: SMTP_PASS, sync: false }
       - { key: SMTP_FROM, sync: false }
+      - key: PUBLIC_API_URL
+        value: https://notica-api.onrender.com
+      - key: GATEWAY_SIGNING_KEY
+        generateValue: true
+      - key: WEBHOOK_SIGNING_KEY
+        generateValue: true
+      - { key: EMAIL_PROVIDER, sync: false }
+      - { key: EMAIL_FROM, sync: false }
+      - { key: RESEND_API_KEY, sync: false }
+      - { key: RESEND_WEBHOOK_SECRET, sync: false }
+      - { key: SMS_PROVIDER, sync: false }
 
   - type: web
     name: notica-web

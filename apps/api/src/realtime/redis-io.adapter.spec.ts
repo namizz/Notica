@@ -74,7 +74,7 @@ describe('RedisIoAdapter', () => {
     expect(created).toHaveLength(1);
     expect(buildAdapter).toHaveBeenCalledTimes(1);
 
-    const [pubClient, subClient] = buildAdapter.mock.calls[0] as [
+    const [pubClient, subClient] = buildAdapter.mock.calls[0] as unknown as [
       FakeClient,
       FakeClient,
     ];
@@ -88,7 +88,7 @@ describe('RedisIoAdapter', () => {
 
     adapter.connect(env);
 
-    const [pubClient, subClient] = buildAdapter.mock.calls[0] as [
+    const [pubClient, subClient] = buildAdapter.mock.calls[0] as unknown as [
       FakeClient,
       FakeClient,
     ];
@@ -120,7 +120,7 @@ describe('RedisIoAdapter', () => {
     const { adapter, buildAdapter } = build();
 
     adapter.connect(env);
-    const [pubClient, subClient] = buildAdapter.mock.calls[0] as [
+    const [pubClient, subClient] = buildAdapter.mock.calls[0] as unknown as [
       FakeClient,
       FakeClient,
     ];
@@ -136,7 +136,7 @@ describe('RedisIoAdapter', () => {
     const server = fakeServer();
 
     adapter.connect(env);
-    const [pubClient] = buildAdapter.mock.calls[0] as [FakeClient];
+    const [pubClient] = buildAdapter.mock.calls[0] as unknown as [FakeClient];
 
     await adapter.disconnect();
     await adapter.disconnect();

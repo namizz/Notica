@@ -11,6 +11,9 @@ import { PushModule } from './push/push.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { AuthTestController } from './auth-test.controller';
 import { EmailModule } from './email/email.module';
+import { ChannelsModule } from './channels/channels.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { SmsModule } from './sms/sms.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -25,6 +28,9 @@ import { HealthModule } from './health/health.module';
     PushModule,
     DeviceTokensModule,
     EmailModule,
+    ChannelsModule,
+    WebhooksModule,
+    SmsModule,
     HealthModule,
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 minute

@@ -1,32 +1,38 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { SmtpProvider } from './smtp.provider';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { emailProviderName } from '../config/environment';
 import { ConsoleProvider } from './console.provider';
-import { EmailDeliveryResult, EmailProvider } from './email-provider.interface';
+import { ResendProvider } from './resend.provider';
+import { SmtpProvider } from './smtp.provider';
+import { EmailProvider, EmailSendParams, EmailSendResult } from './email-provider.interface';
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
-  private activeProvider: EmailProvider;
+  private activeProvider: EmailProvider | null = null;
 
   constructor(
     private readonly smtpProvider: SmtpProvider,
     private readonly consoleProvider: ConsoleProvider,
-  ) {
-    const host = process.env.SMTP_HOST;
-    if (host) {
-      this.activeProvider = this.smtpProvider;
-      this.logger.log('Active email provider: SMTP');
-    } else {
-      this.activeProvider = this.consoleProvider;
-      this.logger.log('Active email provider: CONSOLE (fallback)');
+    private readonly resendProvider: ResendProvider,
+  ) {}
+
+  onModuleInit() {
+    const name = emailProviderName();
+    switch (name) {
+      case 'smtp': this.activeProvider = this.smtpProvider; break;
+      case 'resend': this.activeProvider = this.resendProvider; break;
+      case 'console': this.activeProvider = this.consoleProvider; break;
+      default: this.activeProvider = null;
     }
+    this.logger.log(name ? `Active email provider: ${name.toUpperCase()}` : 'Email channel disabled');
   }
 
-  async sendEmail(
-    to: string,
-    subject: string,
-    htmlContent: string,
-  ): Promise<EmailDeliveryResult> {
-    return this.activeProvider.send(to, subject, htmlContent);
+  isEnabled(): boolean { return this.activeProvider !== null; }
+
+  providerName(): string | null { return emailProviderName(); }
+
+  async send(params: EmailSendParams): Promise<EmailSendResult> {
+    if (!this.activeProvider) throw new Error('Email channel is disabled on this server.');
+    return this.activeProvider.send(params);
   }
 }

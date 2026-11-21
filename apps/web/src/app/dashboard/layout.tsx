@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { NoticaMark } from '@/components/public/PublicShell';
-import { Layers, Monitor, ShieldCheck, LogOut, User, Bell, Terminal, BookOpen, Activity } from 'lucide-react';
+import { Layers, Monitor, ShieldCheck, LogOut, User, Bell, Terminal, BookOpen, Activity, Smartphone, Webhook } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -16,6 +16,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Projects & Keys', href: '/dashboard', icon: Layers },
     { name: 'Real-time Console', href: '/dashboard/console', icon: Activity },
     { name: 'Delivery Logs', href: '/dashboard/logs', icon: Terminal },
+    { name: 'SMS Gateways', href: '/dashboard/gateways', icon: Smartphone },
+    { name: 'Webhooks', href: '/dashboard/webhooks', icon: Webhook },
     { name: 'Documentation', href: '/', icon: BookOpen },
     { name: 'Active Sessions', href: '/dashboard/sessions', icon: Monitor },
     { name: '2FA Security', href: '/dashboard/security', icon: ShieldCheck },

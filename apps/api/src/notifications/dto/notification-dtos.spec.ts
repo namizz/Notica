@@ -11,7 +11,7 @@ describe('notification DTO validation', () => {
       recipientId: 'customer-1',
       title: 'x'.repeat(161),
       body: 'Message',
-      channel: 'SMS',
+      channel: 'FAX',
     });
 
     const errors = await validate(dto);

@@ -1,9 +1,19 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { EmailDeliveryResult, EmailProvider } from './email-provider.interface';
+import { emailProviderName, isProductionEnv } from '../config/environment';
+import { EmailProvider, EmailSendError, EmailSendParams, EmailSendResult } from './email-provider.interface';
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown SMTP error';
+function classifySmtpError(error: unknown): 'transient' | 'permanent' {
+  if (!(error instanceof Error)) return 'transient';
+  const code = (error as NodeJS.ErrnoException).code;
+  const responseCode = (error as { responseCode?: number }).responseCode;
+  if (code === 'EAUTH') return 'permanent';
+  if (responseCode !== undefined) {
+    if (responseCode >= 500) return 'permanent';
+    if (responseCode >= 400) return 'transient';
+  }
+  if (code === 'ECONNECTION' || code === 'ETIMEDOUT' || code === 'ESOCKET') return 'transient';
+  return 'transient';
 }
 
 @Injectable()
@@ -11,66 +21,58 @@ export class SmtpProvider implements EmailProvider, OnModuleInit {
   private readonly logger = new Logger(SmtpProvider.name);
   private transporter: nodemailer.Transporter | null = null;
 
-  onModuleInit() {
+  async onModuleInit() {
+    if (emailProviderName() !== 'smtp') return;
     const host = process.env.SMTP_HOST;
-    const port = process.env.SMTP_PORT;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
+    if (!host) return;
 
-    if (!host) {
-      this.logger.warn(
-        'SMTP_HOST is not configured. SMTP provider will be unavailable.',
-      );
-      return;
-    }
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    const smtpSecureEnv = process.env.SMTP_SECURE;
+    const secure = smtpSecureEnv !== undefined
+      ? smtpSecureEnv === 'true' || smtpSecureEnv === '1'
+      : port === 465;
 
-    try {
-      this.transporter = nodemailer.createTransport({
-        host: host,
-        port: port ? parseInt(port, 10) : 587,
-        secure: port === '465',
-        auth: user && pass ? { user, pass } : undefined,
-        connectionTimeout: 10_000,
-        greetingTimeout: 10_000,
-        socketTimeout: 15_000,
-      });
-      this.logger.log(`SMTP provider initialized for host: ${host}`);
-    } catch (error: unknown) {
-      this.logger.error(
-        `Failed to initialize SMTP transporter: ${errorMessage(error)}`,
-      );
+    this.transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      requireTLS: !secure,
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 100,
+      auth: process.env.SMTP_USER && process.env.SMTP_PASS
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
+    });
+
+    if (isProductionEnv()) {
+      await this.transporter.verify();
+      this.logger.log(`SMTP verified: ${host}:${port}`);
+    } else {
+      this.logger.log(`SMTP provider initialized: ${host}:${port}`);
     }
   }
 
-  async send(
-    to: string,
-    subject: string,
-    htmlContent: string,
-  ): Promise<EmailDeliveryResult> {
-    if (!this.transporter) {
-      throw new Error('SMTP transporter is not initialized.');
-    }
-
-    const from = process.env.SMTP_FROM || 'noreply@notica.com';
-    const mailOptions = {
-      from,
-      to,
-      subject,
-      html: htmlContent,
-    };
-
+  async send(params: EmailSendParams): Promise<EmailSendResult> {
+    if (!this.transporter) throw new Error('SMTP transporter is not initialized.');
     try {
-      const info = await this.transporter.sendMail(mailOptions);
-      this.logger.log(`Email sent successfully via SMTP: ${info.messageId}`);
-      return {
-        messageId: info.messageId,
-        provider: 'smtp',
-        delivered: true,
-        simulated: false,
-      };
+      const info = await this.transporter.sendMail({
+        from: params.from,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+      });
+      this.logger.log(`Email sent via SMTP: ${info.messageId}`);
+      return { messageId: info.messageId as string, provider: 'smtp', simulated: false };
     } catch (error: unknown) {
-      this.logger.error(`Error sending email via SMTP: ${errorMessage(error)}`);
-      throw error;
+      const kind = classifySmtpError(error);
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`SMTP error (${kind}): ${msg}`);
+      throw new EmailSendError(msg, kind === 'permanent');
     }
   }
 }

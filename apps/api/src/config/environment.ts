@@ -171,6 +171,176 @@ export function validateProductionEnvironment(
       throw new Error('SMTP_PORT must be a valid TCP port');
     }
   }
+
+  // Each channel is optional and validated on its own: an email-only
+  // deployment needs no SMS settings and an SMS-only one no email settings.
+  validateEmailChannel(env);
+  validateSmsChannel(env);
+
+  if (env.WEBHOOK_SIGNING_KEY?.trim()) {
+    validateSecret(env, 'WEBHOOK_SIGNING_KEY');
+  }
+}
+
+function validateEmailChannel(env: NodeJS.ProcessEnv) {
+  const provider = emailProviderName(env);
+  if (provider === 'console') {
+    throw new Error(
+      'EMAIL_PROVIDER=console only logs emails and is not allowed in production',
+    );
+  }
+  if (provider === 'smtp') {
+    required(env, 'SMTP_HOST');
+    if (!env.EMAIL_FROM?.trim() && !env.SMTP_FROM?.trim()) {
+      throw new Error('EMAIL_PROVIDER=smtp requires EMAIL_FROM (or SMTP_FROM)');
+    }
+  }
+  if (provider === 'resend') {
+    required(env, 'RESEND_API_KEY');
+    required(env, 'EMAIL_FROM');
+  }
+}
+
+function validateSmsChannel(env: NodeJS.ProcessEnv) {
+  const provider = smsProviderName(env);
+  if (provider === 'console') {
+    throw new Error(
+      'SMS_PROVIDER=console only logs messages and is not allowed in production',
+    );
+  }
+  if (provider === 'gateway') {
+    validateSecret(env, 'GATEWAY_SIGNING_KEY');
+    validateUrl(env, 'PUBLIC_API_URL', ['https:']);
+  }
+  smsSettings(env);
+}
+
+export function isProductionEnv(env: NodeJS.ProcessEnv = process.env) {
+  return env.NODE_ENV === 'production' || env.RENDER === 'true';
+}
+
+// Development-only fallbacks so webhooks and gateways work without setup.
+// Production never uses them (the keys are required there).
+const DEV_WEBHOOK_SIGNING_KEY = 'notica-dev-webhook-signing-key-not-for-production';
+const DEV_GATEWAY_SIGNING_KEY = 'notica-dev-gateway-signing-key-not-for-production';
+
+/** Signs customer webhooks. Null (webhooks off) in production when unset. */
+export function webhookSigningKey(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const value = env.WEBHOOK_SIGNING_KEY?.trim();
+  if (value) {
+    return value;
+  }
+  return isProductionEnv(env) ? null : DEV_WEBHOOK_SIGNING_KEY;
+}
+
+/** Derives each gateway phone's request-signing secret. */
+export function gatewaySigningKey(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const value = env.GATEWAY_SIGNING_KEY?.trim();
+  if (value) {
+    return value;
+  }
+  return isProductionEnv(env) ? null : DEV_GATEWAY_SIGNING_KEY;
+}
+
+export const EMAIL_PROVIDERS = ['resend', 'smtp', 'console'] as const;
+export type EmailProviderName = (typeof EMAIL_PROVIDERS)[number];
+
+/**
+ * The active email provider, or null when email is off.
+ *
+ * EMAIL_PROVIDER wins when set (`off` disables email). When unset, an
+ * existing SMTP_HOST keeps selecting SMTP, and development falls back to
+ * logging emails to the console. Production without either has email off.
+ */
+export function emailProviderName(
+  env: NodeJS.ProcessEnv = process.env,
+): EmailProviderName | null {
+  const value = env.EMAIL_PROVIDER?.trim().toLowerCase();
+  if (value) {
+    if (value === 'off' || value === 'none') {
+      return null;
+    }
+    if (!EMAIL_PROVIDERS.includes(value as EmailProviderName)) {
+      throw new Error(
+        `EMAIL_PROVIDER must be one of ${EMAIL_PROVIDERS.join(', ')}, off; received "${value}"`,
+      );
+    }
+    return value as EmailProviderName;
+  }
+  if (env.SMTP_HOST?.trim()) {
+    return 'smtp';
+  }
+  return isProductionEnv(env) ? null : 'console';
+}
+
+export const SMS_PROVIDERS = ['gateway', 'console'] as const;
+export type SmsProviderName = (typeof SMS_PROVIDERS)[number];
+
+/** The active SMS provider, or null when SMS is off (the default). */
+export function smsProviderName(
+  env: NodeJS.ProcessEnv = process.env,
+): SmsProviderName | null {
+  const value = env.SMS_PROVIDER?.trim().toLowerCase();
+  if (!value || value === 'off' || value === 'none') {
+    return null;
+  }
+  if (!SMS_PROVIDERS.includes(value as SmsProviderName)) {
+    throw new Error(
+      `SMS_PROVIDER must be one of ${SMS_PROVIDERS.join(', ')}, off; received "${value}"`,
+    );
+  }
+  return value as SmsProviderName;
+}
+
+function integerFromEnv(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const raw = env[key]?.trim();
+  if (!raw) {
+    return fallback;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`${key} must be an integer from ${min} to ${max}`);
+  }
+  return value;
+}
+
+export interface SmsSettings {
+  messageTtlMinutes: number;
+  maxParts: number;
+  dailyLimitPerProject: number;
+  leaseSeconds: number;
+  maxDispatchAttempts: number;
+  reassignAfterSeconds: number;
+  textRetentionDays: number;
+}
+
+export function smsSettings(env: NodeJS.ProcessEnv = process.env): SmsSettings {
+  return {
+    messageTtlMinutes: integerFromEnv(env, 'SMS_MESSAGE_TTL_MINUTES', 60, 1, 10_080),
+    maxParts: integerFromEnv(env, 'SMS_MAX_PARTS', 10, 1, 30),
+    dailyLimitPerProject: integerFromEnv(env, 'SMS_DAILY_LIMIT_PER_PROJECT', 500, 1, 1_000_000),
+    leaseSeconds: integerFromEnv(env, 'SMS_LEASE_SECONDS', 120, 10, 3600),
+    maxDispatchAttempts: integerFromEnv(env, 'SMS_MAX_DISPATCH_ATTEMPTS', 5, 1, 100),
+    reassignAfterSeconds: integerFromEnv(env, 'SMS_REASSIGN_AFTER_SECONDS', 300, 30, 86_400),
+    textRetentionDays: integerFromEnv(env, 'SMS_TEXT_RETENTION_DAYS', 30, 1, 3650),
+  };
+}
+
+/** Public base URL of this API, embedded in gateway pairing QR codes. */
+export function publicApiUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const value = env.PUBLIC_API_URL?.trim();
+  const url = value || `http://localhost:${env.PORT ?? 8000}`;
+  return url.replace(/\/+$/, '');
 }
 
 export function redisConnectionOptions(

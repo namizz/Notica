@@ -14,13 +14,15 @@ import {
   Clock,
   Terminal,
   Send,
-  Laptop
+  Laptop,
+  MessageSquare,
 } from 'lucide-react';
 
 interface RecipientUser {
   externalUserId: string;
   name: string | null;
   email: string | null;
+  phone?: string | null;
 }
 
 interface DeliveryAttempt {
@@ -36,7 +38,7 @@ interface NotificationLog {
   id: string;
   title: string;
   body: string;
-  channel: 'IN_APP' | 'WEB_PUSH' | 'EMAIL';
+  channel: 'IN_APP' | 'WEB_PUSH' | 'EMAIL' | 'SMS';
   status: 'PENDING' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'FAILED';
   createdAt: string;
   recipientUser: RecipientUser;
@@ -178,6 +180,14 @@ export default function DeliveryLogsPage() {
         </span>
       );
     }
+    if (logChannel === 'SMS') {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
+          <MessageSquare className="h-3.5 w-3.5" />
+          SMS
+        </span>
+      );
+    }
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-sky-400">
         <Send className="h-3.5 w-3.5" />
@@ -261,6 +271,7 @@ export default function DeliveryLogsPage() {
             <option value="IN_APP">In-App</option>
             <option value="WEB_PUSH">Web Push</option>
             <option value="EMAIL">Email</option>
+            <option value="SMS">SMS</option>
           </select>
 
           <select
@@ -441,6 +452,12 @@ export default function DeliveryLogsPage() {
                     <div className="flex justify-between">
                       <span className="text-slate-550">Email Address:</span>
                       <span className="text-slate-200">{selectedLog.recipientUser.email}</span>
+                    </div>
+                  )}
+                  {selectedLog.recipientUser.phone && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-550">Phone Number:</span>
+                      <span className="text-slate-200 font-mono">{selectedLog.recipientUser.phone}</span>
                     </div>
                   )}
                 </div>

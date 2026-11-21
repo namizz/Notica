@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsNotEmpty,
@@ -37,4 +37,13 @@ export class IdentifyRecipientDto {
   @IsString()
   @MaxLength(191)
   name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Phone number in E.164 format',
+    example: '+251911234567',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
 }

@@ -13,7 +13,7 @@ import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   validateProductionEnvironment();
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // Drain in-flight delivery jobs, close sockets, and disconnect Prisma and the
   // realtime Redis clients when the platform sends SIGTERM.

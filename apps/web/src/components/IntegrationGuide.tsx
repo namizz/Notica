@@ -154,6 +154,35 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
           </>
         );
 
+      case 'sms':
+        return (
+          <>
+            <span className="text-slate-500">{'# Send automated SMS through paired Android Gateway Phone'}</span>
+            <br />
+            curl -X POST <span className="text-emerald-400">&quot;{apiUrl}/notifications&quot;</span> \
+            <br />
+            &nbsp;&nbsp;-H <span className="text-emerald-400">&quot;x-api-key: {apiKey}&quot;</span> \
+            <br />
+            &nbsp;&nbsp;-H <span className="text-emerald-400">&quot;Idempotency-Key: $(uuidgen)&quot;</span> \
+            <br />
+            &nbsp;&nbsp;-H <span className="text-emerald-400">&quot;Content-Type: application/json&quot;</span> \
+            <br />
+            &nbsp;&nbsp;-d &apos;&#123;
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&quot;recipientId&quot;: &quot;customer_948&quot;,
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&quot;phone&quot;: &quot;+251911234567&quot;,
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&quot;title&quot;: &quot;Security OTP&quot;,
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&quot;body&quot;: &quot;Your verification code is 482913.&quot;,
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&quot;channel&quot;: &quot;SMS&quot;
+            <br />
+            &nbsp;&nbsp;&#125;&apos;
+          </>
+        );
+
       default:
         return null;
     }
@@ -175,6 +204,13 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${activeTab === 'nodejs' ? 'bg-violet-600 text-white shadow shadow-violet-600/25' : 'hover:text-slate-200'}`}
           >
             Node.js (Backend)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('sms')}
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${activeTab === 'sms' ? 'bg-emerald-600 text-white shadow shadow-emerald-600/25' : 'hover:text-slate-200'}`}
+          >
+            SMS (cURL)
           </button>
           <button
             type="button"

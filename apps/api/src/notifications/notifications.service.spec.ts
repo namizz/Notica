@@ -10,10 +10,15 @@ describe('NotificationsService idempotency', () => {
   const recipientUser = { upsert: jest.fn() };
   const notification = { create: jest.fn(), findUnique: jest.fn() };
   const queue = { add: jest.fn() };
+  const mockRegistry = {
+    isBuiltIn: jest.fn().mockReturnValue(true),
+    requireEnabled: jest.fn(),
+  };
 
   const service = new NotificationsService(
     { project, recipientUser, notification } as unknown as PrismaService,
     queue as unknown as Queue,
+    mockRegistry as any,
   );
 
   const dto: SendNotificationDto = {

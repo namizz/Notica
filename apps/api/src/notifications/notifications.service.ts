@@ -1,4 +1,5 @@
 import {
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -11,6 +12,9 @@ import { SendNotificationDto } from './dto/send-notification.dto';
 import { Notification, NotificationStatus, Prisma } from '@prisma/client';
 import { sanitizeText } from './utils/sanitize.util';
 import { ListNotificationsDto } from './dto/list-notifications.dto';
+import { ChannelRegistry } from '../channels/channel-registry';
+import { normalizeE164 } from '../common/phone.util';
+import { ChannelRequestError } from '../channels/channel-errors';
 import type { NotificationJobData } from './notifications.processor';
 
 /** The fields a replayed request must repeat exactly to reuse its key. */
@@ -24,6 +28,7 @@ export class NotificationsService {
   constructor(
     private prisma: PrismaService,
     @InjectQueue('notification-delivery') private deliveryQueue: Queue,
+    private registry: ChannelRegistry,
   ) {}
 
   private async assertProjectAccess(tenantId: string, projectId: string) {
@@ -46,6 +51,21 @@ export class NotificationsService {
     const { recipientId, title, body, channel } = dto;
     const sanitizedTitle = sanitizeText(title);
     const sanitizedBody = sanitizeText(body);
+
+    // Normalize and validate phone/email before any DB work.
+    let normalizedPhone: string | undefined;
+    if (dto.phone) {
+      normalizedPhone = normalizeE164(dto.phone) ?? undefined;
+      if (!normalizedPhone) {
+        throw new ChannelRequestError(
+          HttpStatus.BAD_REQUEST,
+          'INVALID_PHONE',
+          'The phone number is not a valid E.164 string (e.g. +251911234567).',
+        );
+      }
+    }
+    const normalizedEmail = dto.email?.toLowerCase().trim();
+
     await this.assertProjectAccess(tenantId, projectId);
 
     const request: ReplayableRequest = {
@@ -69,18 +89,30 @@ export class NotificationsService {
     // concurrent first sends to the same recipient from colliding.
     const recipient = await this.prisma.recipientUser.upsert({
       where: {
-        projectId_externalUserId: {
-          projectId,
-          externalUserId: recipientId,
-        },
+        projectId_externalUserId: { projectId, externalUserId: recipientId },
       },
-      update: {},
+      update: {
+        ...(normalizedEmail !== undefined
+          ? { email: normalizedEmail, emailSuppressedAt: null, emailSuppressionReason: null }
+          : {}),
+        ...(normalizedPhone !== undefined ? { phone: normalizedPhone } : {}),
+      },
       create: {
         tenantId,
         projectId,
         externalUserId: recipientId,
+        email: normalizedEmail,
+        phone: normalizedPhone,
       },
     });
+
+    // Channel-specific request-time checks (e.g. phone present, gateway paired).
+    if (!this.registry.isBuiltIn(channel)) {
+      const handler = this.registry.requireEnabled(channel);
+      if (handler.prepare) {
+        await handler.prepare({ tenantId, projectId, recipient, title: sanitizedTitle, body: sanitizedBody });
+      }
+    }
 
     // 2. Create the notification record in DB (PENDING status)
     let notification: Notification;

@@ -4,24 +4,13 @@ import {
   DeliveryStatus,
   NotificationStatus,
 } from '@prisma/client';
-import { Job } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 import { Logger } from '@nestjs/common';
-import { EmailDeliveryResult } from '../email/email-provider.interface';
-import { EmailService } from '../email/email.service';
+import { ChannelRegistry } from '../channels/channel-registry';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
-
-export interface NotificationJobData {
-  notificationId: string;
-  tenantId: string;
-  projectId: string;
-  recipientDbId: string;
-  externalUserId: string;
-  title: string;
-  body: string;
-  channel: ChannelType;
-}
+import type { NotificationJobData, DeliveryOutcome } from '../channels/channel-handler.interface';
 
 interface PushError extends Error {
   statusCode?: number;
@@ -53,7 +42,7 @@ export class NotificationsProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly pushService: PushService,
-    private readonly emailService: EmailService,
+    private readonly registry: ChannelRegistry,
   ) {
     super();
   }
@@ -76,14 +65,24 @@ export class NotificationsProcessor extends WorkerHost {
       channel: data.channel,
     });
 
+    let result: DeliveryOutcome;
     try {
       switch (data.channel) {
         case ChannelType.IN_APP:
-          return await this.processInApp(data, job.attemptsMade + 1);
+          result = await this.processInApp(data, job.attemptsMade + 1);
+          break;
         case ChannelType.WEB_PUSH:
-          return await this.processWebPush(data, job.attemptsMade + 1);
-        case ChannelType.EMAIL:
-          return await this.processEmail(data, job.attemptsMade + 1);
+          result = await this.processWebPush(data, job.attemptsMade + 1);
+          break;
+        default: {
+          const handler = this.registry.get(data.channel);
+          if (!handler) {
+            throw new UnrecoverableError(
+              `No handler registered for channel ${data.channel}`,
+            );
+          }
+          result = await handler.deliver(data, job.attemptsMade);
+        }
       }
     } catch (error: unknown) {
       const message = errorMessage(error);
@@ -104,6 +103,8 @@ export class NotificationsProcessor extends WorkerHost {
       );
       throw error;
     }
+
+    return result;
   }
 
   private async processInApp(data: NotificationJobData, attemptCount: number) {
@@ -298,97 +299,6 @@ export class NotificationsProcessor extends WorkerHost {
     return { success: true, status: NotificationStatus.DELIVERED };
   }
 
-  private async processEmail(data: NotificationJobData, attemptCount: number) {
-    const previous = await this.findCompletedDelivery(data.notificationId);
-    if (previous) {
-      const status =
-        previous.status === DeliveryStatus.SIMULATED
-          ? NotificationStatus.SENT
-          : NotificationStatus.DELIVERED;
-      await this.resumeCompletedDelivery(data, status);
-      return { success: true, status };
-    }
-
-    const recipient = await this.prisma.recipientUser.findFirst({
-      where: {
-        id: data.recipientDbId,
-        tenantId: data.tenantId,
-        projectId: data.projectId,
-      },
-    });
-    const delivery = await this.createDelivery(
-      data.notificationId,
-      'email',
-      attemptCount,
-    );
-
-    if (!recipient?.email) {
-      await this.prisma.notificationDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: DeliveryStatus.FAILED,
-          errorMessage: 'Recipient has no email address configured.',
-          sentAt: new Date(),
-        },
-      });
-      throw new Error('Recipient has no email address configured.');
-    }
-
-    let result: EmailDeliveryResult;
-    try {
-      result = await this.emailService.sendEmail(
-        recipient.email,
-        data.title,
-        data.body,
-      );
-    } catch (error: unknown) {
-      await this.prisma.notificationDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: DeliveryStatus.FAILED,
-          errorMessage: errorMessage(error),
-          sentAt: new Date(),
-        },
-      });
-      throw error;
-    }
-
-    const notificationStatus = result.simulated
-      ? NotificationStatus.SENT
-      : NotificationStatus.DELIVERED;
-
-    // Record the delivery before anything else can fail, so a retry sees it.
-    // Outside the try above: a failed bookkeeping write must not relabel an
-    // email that was already sent as a failed send.
-    await this.prisma.notificationDelivery.update({
-      where: { id: delivery.id },
-      data: {
-        provider: result.provider,
-        status: result.simulated
-          ? DeliveryStatus.SIMULATED
-          : DeliveryStatus.SUCCESS,
-        sentAt: new Date(),
-      },
-    });
-    await this.prisma.notification.update({
-      where: { id: data.notificationId },
-      data: { status: notificationStatus },
-    });
-
-    this.realtimeGateway.sendLogToProject(data.tenantId, data.projectId, {
-      timestamp: new Date(),
-      type: result.simulated ? 'warning' : 'success',
-      message: result.simulated
-        ? `Email simulated in console for ${recipient.email}`
-        : `Email delivered via ${result.provider} to ${recipient.email}`,
-      notificationId: data.notificationId,
-      recipientId: data.externalUserId,
-      channel: data.channel,
-    });
-
-    return { success: true, status: notificationStatus };
-  }
-
   private findCompletedDelivery(notificationId: string) {
     return this.prisma.notificationDelivery.findFirst({
       where: {
@@ -437,3 +347,5 @@ export class NotificationsProcessor extends WorkerHost {
     });
   }
 }
+
+export type { NotificationJobData } from '../channels/channel-handler.interface';
